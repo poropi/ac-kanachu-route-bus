@@ -19,6 +19,7 @@
 ## 特徴
 
 - **外装・内装を一から製作**：運転席（計器・ハンドル・料金箱）と客室（座席・手すり・つり革）まで作っています。
+- **オリジナルの運転士**：神奈中の制服を着た運転士（帽子の徽章と胸の刺繍は描き直した字）が運転席に座り、ハンドルを回します。モデルは MIT のオリジナルで、Kunos や他の MOD のものは使っていません。
 - **塗装 2 種**：新塗装（2023 年度〜）と旧塗装（クリーム地に赤・橙の帯）。ロゴと文字はすべて描き直しています。
 - **走りは諸元から**：車両重量 9,790 kg、169 kW・773 N·m のディーゼル、回転は 2,600 rpm まで。加速はゆっくりで、最小旋回半径は約 8.3 m です。
 - **自作のエンジン音**：フリー素材（Pixabay）のバスやトラックの音から、回転数ごとの音を作り直しています。扉の開閉音とエアブレーキの音も入っています。
@@ -41,8 +42,11 @@
 ## 導入
 
 1. [Releases](../../releases) から `kanachu_route_bus.zip` を取ってきます。
-2. 展開してできた `kanachu_route_bus` フォルダを、`assettocorsa/content/cars/` に置きます。
-3. ゲームの車の選択で「Kanachu City Bus (Large Non-step)」を選びます。
+2. zip を `assettocorsa/` フォルダの中に展開します。zip は AC の `content/` と同じ形で、次の 2 か所に入ります。
+   - `content/cars/kanachu_route_bus/`：車
+   - `content/driver/kanachu_driver.kn5`：運転士のモデル（車が使います）
+3. Content Manager で zip を入れた場合は、入れた後に `assettocorsa/content/driver/kanachu_driver.kn5` があるかを確かめてください。無ければ、zip の中の同じファイルを手でそこに置きます（Content Manager が運転士のモデルまで入れるかは、確かめていません）。
+4. ゲームの車の選択で「Kanachu City Bus (Large Non-step)」を選びます。
 
 ## 使い方
 
@@ -59,6 +63,7 @@
 - 尾灯のレンズは、消えているときに白っぽく見えます。
 - 扉・窓・床の高さは、写真から推定しています。
 - 社番、ナンバーの実番号、ステッカー類は付けていません。
+- 運転席の視点は運転士の頭より少し後ろにあります。運転士の頭と首は運転席の視点では隠していますが、下を向くと上着の背中が写り、ハンドルの中央が隠れます（両手とメーターは見えます）。
 
 ## ソースから組み立てる
 
@@ -71,7 +76,7 @@
 - FMOD Studio 1.08.12：音の bank を作り直すときだけ要ります。できた bank（`audio/build/kanachu_route_bus.bank`）は同梱しています。
 
 ```sh
-python3 tools/assemble.py     # build/kanachu_route_bus/ と build/kanachu_route_bus.zip を作る
+python3 tools/assemble.py     # build/kanachu_route_bus/、build/driver/kanachu_driver.kn5、build/kanachu_route_bus.zip を作る
 python3 tools/validate.py     # 組み上がった車の検査（必要なファイル、kn5 のノード、鏡など）
 python3 -m pytest -q          # テスト
 ```
@@ -87,10 +92,10 @@ GAME_PC=<Windows の ssh ホスト名> python3 tools/fmod_build.py build
 ### 公開前の検査
 
 ```sh
-PUBLIC_FORBID=<手元のユーザー名>,<ホスト名> python3 tools/check_public.py
+PUBLIC_FORBID=<ホスト名> python3 tools/check_public.py
 ```
 
-git に入っているファイルと配布する zip に、手元の絶対パスや、公開しない場所のファイル（参考写真の比較画像、PDF、借り物）が無いかを調べます。
+git に入っているファイルと配布する zip に、手元の絶対パス（`/Users/<名前>` や `C:\Users\<名前>` は `PUBLIC_FORBID` に書かなくても検出します。`PUBLIC_FORBID` には公開したくない語、たとえばホスト名をコンマ区切りで渡します）や、公開しない場所のファイル（参考写真の比較画像、PDF、`vendor/` 以下）や、他の MOD から借りたファイルと同じ中身のファイルが無いかを調べます。.blend は圧縮されているので、展開してから調べます。
 
 主なフォルダ：
 
@@ -98,7 +103,7 @@ git に入っているファイルと配布する zip に、手元の絶対パ�
 |---|---|
 | `tools/` | kn5 の読み書き、物理（`data/`）の生成、灯火・鏡・UI・スキン・音の組み込み、検査 |
 | `tools/spec.json` | 諸元と仮定の値。値ごとに出典（公式諸元／計算／仮定）を書いています |
-| `design/` | 外装・内装の .blend、塗装、UI の絵、エンジン音の素材 |
+| `design/` | 外装・内装・運転士の .blend、塗装、UI の絵、エンジン音の素材 |
 | `audio/` | FMOD のプロジェクトと、できた bank |
 | `docs/` | 設計書、作業の記録 |
 | `tools/ac/` | 開発に使った、ゲームを自動で走らせて記録する仕組み。Windows のゲーム PC に ssh で入れることが前提で、ホスト名は環境変数 `GAME_PC`（または `tools/ac/local.env`）で指定します |
@@ -129,4 +134,4 @@ git に入っているファイルと配布する zip に、手元の絶対パ�
 
 License: MIT for the code and original assets (see LICENSE); names, logos and liveries are not covered.
 
-Install: put the `kanachu_route_bus` folder into `assettocorsa/content/cars/`. CSP is recommended (lights, real mirrors). AC's F1 chase camera uses one distance for all cars and ends up right behind a 10 m bus, so use **F6** cameras 4 and 5 for a rear view.
+Install: extract the zip into your `assettocorsa/` folder. It installs `content/cars/kanachu_route_bus` and the original driver model `content/driver/kanachu_driver.kn5` (MIT, no Kunos or third-party files). If you install with Content Manager, check that `assettocorsa/content/driver/kanachu_driver.kn5` exists afterwards and copy it there by hand if not (we have not verified that Content Manager installs the driver model). CSP is recommended (lights, real mirrors). AC's F1 chase camera uses one distance for all cars and ends up right behind a 10 m bus, so use **F6** cameras 4 and 5 for a rear view.

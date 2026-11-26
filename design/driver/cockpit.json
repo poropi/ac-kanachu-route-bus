@@ -1,0 +1,49 @@
+{
+  "eye": [
+    -0.642,
+    1.985,
+    3.407
+  ],
+  "wheel_center": [
+    -0.642,
+    1.392,
+    4.098
+  ],
+  "wheel_axis": [
+    -0.0,
+    -0.9135,
+    0.4067
+  ],
+  "seat_point": [
+    -0.642,
+    1.1226,
+    3.58
+  ],
+  "pedal_accel": [
+    -0.755,
+    0.8477,
+    4.2981
+  ],
+  "pedal_brake": [
+    -0.6,
+    0.8477,
+    4.2981
+  ],
+  "rim_radius": 0.232,
+  "rim_tube_radius": 0.016,
+  "backrest_angle_deg": 5.94,
+  "floor_height": 0.647,
+  "column_box": {
+    "min": [
+      -0.8337,
+      1.0158,
+      4.0655
+    ],
+    "max": [
+      -0.4503,
+      1.3859,
+      4.3014
+    ]
+  },
+  "notes": "全値 kn5 座標 (m)。eye=DRIVER_EYE、wheel_center=STEER_HR。wheel_axis は Steering_Rim の頂点の最小二乗平面の法線で、dot(axis, center-eye)>0 になる向き（運転手から遠ざかる）。rim_radius は管の中心線の半径 = 平面内の頂点の中心からの距離の最小と最大の平均。seat_point は Drivers_Seat の座面（z 1.05-1.20、背もたれより前 y>3.40 の頂点）の x・y の中央と上面の高さ（中央値）。backrest_angle_deg は z>1.25 の頂点の y-z 直線当てはめから、垂直から後ろへ倒れた角度。ペダルは別オブジェクトが無く Cab_Dash_and_Driving_Controls の一部。ハンドルの真下 (|x-wheel_x|<0.25)・y 4.20-4.34・床 (floor_height) より上 0.85 以下の頂点を x の一番広い隙間で 2 つに分け、右（blender +X、kn5 の -x）をアクセル、左をブレーキとして、各塊の x・y の中央と上端の高さを踏面の位置に推定した（推定値。実測の部品ではない）。column_box は Steering_Column_and_Stalks の外接箱（脚の干渉の確認用）。 rim_tube_radius はリムの管の半径: 車の kn5 の STEER_HR の子 Steering_Rim の 5,120 頂点すべてが、管の中心線（中心 wheel_center・法線 wheel_axis・半径 rim_radius の円）から 0.016 m（最小・最大とも 0.0160）。手のひらの中心はこの管の表面の外側に置く（tools/driver_pose.py の grip_radius）。"
+}

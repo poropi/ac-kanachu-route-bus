@@ -1,4 +1,6 @@
+import io
 import shutil
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -9,16 +11,33 @@ import validate
 
 ROOT = Path(__file__).resolve().parent.parent
 HAVE_BLENDER = bool(paths.BLENDER and Path(paths.BLENDER).exists())
-HAVE_DRIVER = (ROOT / "vendor" / "driver_jetset" / "driver3d.ini").exists()
+HAVE_DRIVER = (ROOT / "design" / "driver" / "kanachu_driver.blend").exists()
+OPENED = []
 HAVE_SOUND = (ROOT / "audio" / "build" / "kanachu_route_bus.bank").exists()
 
 
 @pytest.fixture(scope="module")
 def built(tmp_path_factory):
     if not (HAVE_BLENDER and HAVE_SOUND and HAVE_DRIVER):
-        pytest.skip("Blender, audio/build or vendor/driver_jetset missing")
+        pytest.skip("Blender, audio/build or design/driver missing")
     out = tmp_path_factory.mktemp("asm") / paths.CAR_NAME
-    assemble.assemble(out, zip_path=None)
+    # 組み立ての間に vendor/ を開こうとしないことを見張る（test_no_vendor_reference）
+    opened = []
+    real_open = io.open
+
+    def spy(file, *a, **k):
+        opened.append(str(file))
+        return real_open(file, *a, **k)
+    real_read_bytes = Path.read_bytes
+
+    def spy_rb(self):
+        opened.append(str(self))
+        return real_read_bytes(self)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(io, "open", spy)
+        mp.setattr(Path, "read_bytes", spy_rb)
+        assemble.assemble(out, zip_path=out.parent / "car.zip")
+    OPENED.extend(opened)
     return out
 
 
@@ -54,8 +73,78 @@ def test_built_guids_horn_and_no_leftovers(built):
 
 def test_build_has_driver_files(built):
     for f in ("data/driver3d.ini", "driver_base_pos.knh", "animations/steer.ksanim"):
-        src = ROOT / "vendor" / "driver_jetset" / f.split("/", 1)[-1] if f.startswith("data/") else ROOT / "vendor" / "driver_jetset" / f
-        assert (built / f).read_bytes() == src.read_bytes(), f
+        assert (built / f).stat().st_size > 0, f
+    assert (built.parent / "driver" / "kanachu_driver.kn5").stat().st_size > 0
+    assert validate.validate(built, driver_kn5=built.parent / "driver" / "kanachu_driver.kn5") == []
+
+
+def test_driver3d_ini_values():
+    import physics
+    import driver
+    import tempfile
+    with tempfile.TemporaryDirectory() as t:
+        f = Path(t) / "driver3d.ini"
+        f.write_text(driver.driver3d_ini(), encoding="utf8")
+        ini = physics.read_ini(f, strict=True)
+        f.write_text(driver.driver3d_ini(450), encoding="utf8")
+        assert physics.read_ini(f, strict=True)["STEER_ANIMATION"]["LOCK"] == "450"
+    assert ini["MODEL"] == {"NAME": "kanachu_driver", "POSITION": "0,0,0"}
+    assert ini["STEER_ANIMATION"] == {"NAME": "steer.ksanim", "LOCK": "90"}
+    assert "SHIFT_ANIMATION" in ini and int(ini["SHIFT_ANIMATION"]["PRELOAD_RPM"]) < 2600   # 回転は 2,600 rpm まで
+    assert [ini["HIDE_OBJECT_%d" % i]["NAME"] for i in range(4)] == ["DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP", "DRIVER:BODY_SUB3"]
+    assert not any(k.startswith("HIDE_OBJECT_") and k not in ("HIDE_OBJECT_0", "HIDE_OBJECT_1", "HIDE_OBJECT_2", "HIDE_OBJECT_3") for k in ini)
+
+
+def test_zip_layout(built):
+    names = zipfile.ZipFile(built.parent / "car.zip").namelist()
+    assert "content/cars/kanachu_route_bus/data/driver3d.ini" in names
+    assert "content/cars/kanachu_route_bus/kanachu_route_bus.kn5" in names
+    assert "content/driver/kanachu_driver.kn5" in names
+    assert not any(n.startswith("kanachu_route_bus/") for n in names)
+    assert all(n.startswith(("content/cars/kanachu_route_bus/", "content/driver/")) for n in names)
+    assert not any(n.endswith("kanachu_driver.kn5") and "/cars/" in n for n in names)   # 運転手の kn5 は車のフォルダに入れない
+
+
+def test_no_vendor_reference(built):
+    import driver
+    for mod in (assemble, driver):
+        assert "vendor" not in Path(mod.__file__).read_text(encoding="utf8"), mod.__name__
+    assert not hasattr(assemble, "DRIVER_VENDOR") and not hasattr(assemble, "copy_driver")
+    assert OPENED and not [p for p in OPENED if "vendor" in p]   # 組み立ての間に vendor/ を読んでいない
+
+
+def _drop_leaf_bone(kn5_in, kn5_out):
+    k = kn5io.read(kn5_in)
+    for n in kn5io.walk(k.root):
+        for c in list(n.children):
+            if c.cls == 1 and not c.children:
+                n.children.remove(c)
+                kn5io.write(k, kn5_out)
+                return c.name
+    raise AssertionError("葉の骨が無い")
+
+
+def test_validate_detects_missing_driver_bone(built, tmp_path):
+    src = built.parent / "driver" / "kanachu_driver.kn5"
+    dst = tmp_path / "driver" / "kanachu_driver.kn5"
+    dst.parent.mkdir()
+    gone = _drop_leaf_bone(src, dst)
+    probs = validate.validate(built, driver_kn5=dst)
+    assert any(gone in p for p in probs), probs
+
+
+def test_validate_driver_ini_name_and_tracks(built, tmp_path):
+    car = tmp_path / paths.CAR_NAME
+    shutil.copytree(built, car)
+    drv = built.parent / "driver" / "kanachu_driver.kn5"
+    ini = car / "data" / "driver3d.ini"
+    ini.write_text(ini.read_text().replace("NAME=kanachu_driver", "NAME=driver"))
+    assert any("MODEL NAME" in p for p in validate.validate(car, driver_kn5=drv))
+    import ksanim
+    t = ksanim.read(car / "animations" / "steer.ksanim")
+    t.pop(next(iter(t)))
+    ksanim.write(t, car / "animations" / "steer.ksanim")
+    assert any("steer.ksanim" in p for p in validate.validate(car, driver_kn5=drv))
 
 
 def test_validate_detects_missing_driver_file(built, tmp_path):
@@ -76,27 +165,6 @@ def test_validate_detects_two_level_collider(built, tmp_path):
     assert any("collider" in p and "dummy" in p for p in validate.validate(car))
 
 
-def test_assemble_fails_clearly_without_driver_refs(tmp_path, monkeypatch):
-    monkeypatch.setattr(assemble, "DRIVER_VENDOR", tmp_path / "nope")
-    with pytest.raises(SystemExit) as e:
-        assemble.copy_driver(tmp_path / "out")
-    assert "vendor/driver_jetset" in str(e.value)
-
-
-def test_assemble_stops_on_driver_md5_mismatch(tmp_path, monkeypatch):
-    v = tmp_path / "v"
-    shutil.copytree(ROOT / "vendor" / "driver_jetset", v)
-    (v / "driver3d.ini").write_bytes(b"changed")
-    monkeypatch.setattr(assemble, "DRIVER_VENDOR", v)
-    with pytest.raises(SystemExit) as e:
-        assemble.copy_driver(tmp_path / "out")
-    assert "MD5" in str(e.value) and "driver3d.ini" in str(e.value)
-
-
-def test_vendor_driver_matches_source_txt():
-    assert assemble.driver_md5_problems(ROOT / "vendor" / "driver_jetset") == []
-
-
 def test_sfx_default_is_own_bank(tmp_path):
     import sfx
     if not HAVE_SOUND:
@@ -109,7 +177,7 @@ def test_sfx_default_is_own_bank(tmp_path):
 
 def test_box_model_still_builds(tmp_path):
     if not (HAVE_BLENDER and HAVE_SOUND and HAVE_DRIVER):
-        pytest.skip("Blender, audio/build or vendor/driver_jetset missing")
+        pytest.skip("Blender, audio/build or design/driver missing")
     import kn5io
     out = assemble.assemble(tmp_path / paths.CAR_NAME, zip_path=None, model="box")
     assert validate.validate(out, cockpit=False) == []

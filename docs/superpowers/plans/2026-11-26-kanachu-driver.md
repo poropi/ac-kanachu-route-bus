@@ -14,9 +14,9 @@
 
 - 骨の名前と親子は AC 標準の運転手と同じ（`tools/driver_skeleton.py` の `BONES` が唯一の定義。中身は `refs/kunos_driver/driver.kn5` の種類 1 のノード 57 個から名前と親だけを写す。行列・形・動きは写さない）。
 - 運転手の kn5 は `content/driver/kanachu_driver.kn5`。配布 zip は `content/cars/kanachu_route_bus/…` と `content/driver/kanachu_driver.kn5` の形。
-- `driver3d.ini`: `[MODEL] NAME=kanachu_driver`、`POSITION=0,0,0`、`[STEER_ANIMATION] NAME=steer.ksanim`、`[SHIFT_ANIMATION]` は残す、`[HIDE_OBJECT_0..2]` = `DRIVER:GEO_Driver_FACE`・`DRIVER:HAIR`・`DRIVER:CAP`。
-- 席の位置は `driver_base_pos.knh` の `DRIVER:RIG_Center` の行列で表す。座った姿勢の目は `DRIVER_EYE`（kn5 座標 −0.642, 1.985, 3.407）から 3 cm 以内。
-- 手のひらの中心とハンドルのリムの管の中心線の距離 ≤ 0.02 m（ハンドルの回転角 0°、+90°、−90°）。
+- `driver3d.ini`: `[MODEL] NAME=kanachu_driver`、`POSITION=0,0,0`、`[STEER_ANIMATION] NAME=steer.ksanim`、`[SHIFT_ANIMATION]` は残す、`[HIDE_OBJECT_0..2]` = `DRIVER:GEO_Driver_FACE`・`DRIVER:HAIR`・`DRIVER:CAP`。**（2026-11-26 追加）** `[HIDE_OBJECT_3]` = `DRIVER:BODY_SUB3`（首の肌）。
+- 席の位置は `driver_base_pos.knh` の `DRIVER:RIG_Center` の行列で表す。**（2026-11-26 改訂）** 体はモデルの大きさのまま（拡大しない）、腰は座面、上体の前傾 ≤ 20°、肘の曲げ ≥ 15°、手はリムの真上から 60°〜100° で届くいちばん上、頭は `DRIVER_EYE` より下（目を合わせる条件は取りやめ）。
+- 手のひらの中心と目標の距離 ≤ 0.02 m（ハンドルの回転角 0°、+90°、−90°）。**（2026-11-26 改訂: 手のひらはリムの管の上、指を曲げて握る）** 目標は管の中心線から、外向きを運転手の側（上）へ倒した向きへ（管の半径 0.016 + 手のひらの厚みの半分）ずらした点。
 - 1 メッシュ 60,000 頂点以下。骨で動く頂点の重みは 4 本まで、合計 1。
 - Kunos・他の MOD のファイルを配布物とリポジトリに入れない。`refs/`（イラスト・Kunos の運転手）は git 管理外。
 - 「Kanachu」は帽子の徽章と胸の刺繍だけ（描き直した字）。名札は無地。表情は目を開けた笑顔。
@@ -121,7 +121,7 @@
 
 **Interfaces:**
 - Produces: `ksanim.read(path) -> dict[str, list[Frame]]`、`ksanim.write(tracks: dict[str, list[Frame]], path)`、`Frame(rot: tuple[x, y, z, w], pos: tuple[3], scale: tuple[3])`。形式（版 2）: int 版=2、int 骨の数、骨ごとに 名前（int 長さ＋utf8）・int コマ数・コマごとに 10 float（四元数 x y z w、位置 3、大きさ 3）。
-- Produces: `driver_steer.build_steer(seated: dict, rest: dict, cockpit: dict, lock_deg: float, frames: int = 101) -> dict[str, list[Frame]]`。コマ i のハンドルの回転角 = −lock/2 + lock·i/(frames−1)（**仮定**。Task 8 のゲームで確かめ、違えば対応を直す）。|角度| ≤ 90° は両手がリムの同じ点を握ったまま回る（リム上の握り点をハンドルの軸まわりに回し、腕を IK で解く）。それより先は、手の握り点を ±90° の位置で止める（リムから手が離れる）。腕以外の骨は全コマで座った姿勢のまま。`lock_deg` は `driver3d.ini` の `LOCK` と同じ値で、既定 180。
+- Produces: `driver_steer.build_steer(seated: dict, rest: dict, cockpit: dict, lock_deg: float, frames: int = 101) -> dict[str, list[Frame]]`。コマ i のハンドルの回転角 = −lock + 2·lock·i/(frames−1)（2026-11-26 訂正: lock は片側の角度）（**仮定**。Task 8 のゲームで確かめ、違えば対応を直す）。|角度| ≤ 90° は両手がリムの同じ点を握ったまま回る（リム上の握り点をハンドルの軸まわりに回し、腕を IK で解く）。それより先は、手の握り点を ±90° の位置で止める（リムから手が離れる）。腕以外の骨は全コマで座った姿勢のまま。`lock_deg` は `driver3d.ini` の `LOCK` と同じ値で、既定 90（2026-11-26 訂正: LOCK は片側の角度。当初は 180 としていたが誤り）。
 - CLI: `python3 tools/driver_steer.py --kn5 … --cockpit … --lock 180 --out build/driver/steer.ksanim`
 
 - [ ] **Step 1: テストを書く** — `test_ksanim_roundtrip`（`refs` に借り物があれば読めて 55 本×101 コマ。自作の 2 本×3 コマを書いて読むと一致）、`test_hands_on_rim_within_90`（0°・+90°・−90° のコマで、手のひらの中心とリムの距離 ≤ 0.02 m）、`test_no_ik_flip`（隣のコマどうしで肘の角度の変化 ≤ 10°、肘の位置の移動 ≤ 0.05 m。全 101 コマで）、`test_other_bones_static`（腕・手・指以外の骨は全コマで座った姿勢と一致）。

@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """成果物フォルダの検査。validate(car_dir) -> 問題のリスト（空なら合格）。
 
-使い方: python3 tools/validate.py [<car_dir>] [--box]
+使い方: python3 tools/validate.py [<car_dir>] [--box]（運転手の kn5 は <car_dir>/../driver/kanachu_driver.kn5）
 """
 import json
 import sys
 import tempfile
 from pathlib import Path
 
+import driver_skeleton
 import kn5io
+import knh
+import ksanim
 import paths
 import physics
 
@@ -17,7 +20,7 @@ NODES = ("WHEEL_LF", "WHEEL_RF", "WHEEL_LR", "WHEEL_RR", "SUSP_LF", "SUSP_RF", "
          "STEER_HR", "COCKPIT_HR")
 # COCKPIT_HR（運転席まわり）がある主 kn5 に必須の名前。kn5 に入る名前は Blender の ARROW_SPEED・ARROW_RPM・DRIVER_EYE（空オブジェクト）
 COCKPIT_NODES = ("ARROW_SPEED", "ARROW_RPM", "DRIVER_EYE")
-# 無いと CSP が落ちる借り物のドライバー 3 ファイル（空でないことも見る）
+# 無いと CSP が落ちる運転手の 3 ファイル（空でないことも見る）
 DRIVER_FILES = ("driver_base_pos.knh", "animations/steer.ksanim", "data/driver3d.ini")
 # 必須ファイルは「動く 3 台すべてにあるもの」から決めた（計画書ではなく実物）。3 台:
 #   ks_toyota_ae86（Kunos、data.acd）、tky_bus_jetset（バス MOD、data/ 展開）、nix_suzuki_swift_sport_ht81s（data.acd）。
@@ -138,8 +141,53 @@ def mirror_problems(k, mirrors_ini):
     return bad
 
 
-def validate(car_dir, warnings=None, cockpit=True):
-    """問題のリストを返す。cockpit=False は M1 の箱（針・目のノードが無い）用で、COCKPIT_NODES を必須にしない。warnings（list）を渡すと、M1_ABSENT のうち無いものを 1 行で追記する（合否には影響しない）。"""
+def driver_problems(car, driver_kn5):
+    """運転手の検査。種類 1 のノードに driver_skeleton.BONES の骨が全部ある（欠けは問題。骨でも、メッシュの入れ物（SKINNED_MESHES・HEAD_MESHES）でもない余分な名前も問題）、knh に全骨、ksanim の軌跡が骨の数、
+    driver3d.ini の MODEL NAME が運転手の kn5 のファイル名（拡張子なし）と同じ。"""
+    car, driver_kn5 = Path(car), Path(driver_kn5)
+    want = [n for n, _ in driver_skeleton.BONES]
+    bad = []
+    if not driver_kn5.is_file() or driver_kn5.stat().st_size == 0:
+        bad.append("運転手の kn5 が無い／空: %s" % driver_kn5)
+    else:
+        try:
+            got = {n.name for n in kn5io.walk(kn5io.read(driver_kn5).root) if n.cls == 1}
+        except Exception as e:
+            got = None
+            bad.append("%s を読めない: %s" % (driver_kn5.name, e))
+        if got is not None:
+            bad += ["%s に骨 %s が無い" % (driver_kn5.name, n) for n in want if n not in got]
+            okay = set(want) | set(driver_skeleton.SKINNED_MESHES) | set(driver_skeleton.HEAD_MESHES)   # メッシュの入れ物も種類 1
+            bad += ["%s に余分な種類 1 のノード %s がある" % (driver_kn5.name, n) for n in sorted(got - okay)]
+    f = car / "driver_base_pos.knh"
+    if f.is_file() and f.stat().st_size:
+        try:
+            have = {n.name for n in knh.walk(knh.read(f))}
+            bad += ["driver_base_pos.knh に骨 %s が無い" % n for n in want if n not in have]
+        except Exception as e:
+            bad.append("driver_base_pos.knh を読めない: %s" % e)
+    f = car / "animations" / "steer.ksanim"
+    if f.is_file() and f.stat().st_size:
+        try:
+            if len(ksanim.read(f)) != len(want):
+                bad.append("steer.ksanim の軌跡が %d 本（骨は %d 本）" % (len(ksanim.read(f)), len(want)))
+        except Exception as e:
+            bad.append("steer.ksanim を読めない: %s" % e)
+    f = car / "data" / "driver3d.ini"
+    if f.is_file() and f.stat().st_size:
+        try:
+            name = physics.read_ini(f).get("MODEL", {}).get("NAME")
+        except Exception as e:
+            name = None
+            bad.append("driver3d.ini を読めない: %s" % e)
+        else:
+            if name != driver_kn5.stem:
+                bad.append("driver3d.ini の MODEL NAME=%s が運転手の kn5 の名前 %s と違う" % (name, driver_kn5.stem))
+    return bad
+
+
+def validate(car_dir, warnings=None, cockpit=True, driver_kn5=None):
+    """問題のリストを返す。cockpit=False は M1 の箱（針・目のノードが無い）用で、COCKPIT_NODES を必須にしない。driver_kn5（運転手の kn5 のパス）を渡すと運転手の中身も検査する（None なら車のフォルダの運転手のファイルが空でないことだけ）。warnings（list）を渡すと、M1_ABSENT のうち無いものを 1 行で追記する（合否には影響しない）。"""
     car = Path(car_dir)
     bad = []
     if not car.is_dir():
@@ -180,6 +228,8 @@ def validate(car_dir, warnings=None, cockpit=True):
                 nv = len(n.vertices) // 44
                 if n.cls == 2 and nv > MAX_VERTS:
                     bad.append("%s の %s が頂点 %d > %d" % (kn, n.name, nv, MAX_VERTS))
+    if driver_kn5 is not None:
+        bad += driver_problems(car, driver_kn5)
     skins = [d for d in (car / "skins").iterdir() if d.is_dir()] if (car / "skins").is_dir() else []
     if not skins:
         bad.append("skins/ にスキンが 1 つも無い")
@@ -198,7 +248,7 @@ if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if a != "--box"]      # --box: M1 の箱のビルド
     d = args[0] if args else str(paths.BUILD)
     warns = []
-    problems = validate(d, warns, cockpit="--box" not in sys.argv)
+    problems = validate(d, warns, cockpit="--box" not in sys.argv, driver_kn5=Path(d).parent / "driver" / "kanachu_driver.kn5")
     for w in warns:
         print("WARN: " + w)
     if problems:
