@@ -4,10 +4,10 @@
 使い方: python3 tools/assemble.py [--model exterior|box]
 主 kn5 は既定で design/exterior/kanachu_exterior.blend（tools/prepare_blend.py で書き出し用に整える）から、
 --model box なら blender/m1_box.blend から書き出す。collider.kn5 は blender/m1_collider.blend（Blender が要る）。
-音は audio/build/（tools/fmod_build.py で作った自作 bank）。ドライバー 3 ファイルは vendor/driver_jetset/（別の MOD からの借り物。公開版では自作のものに差し替える）。
+音は audio/build/（tools/fmod_build.py で作った自作 bank）。運転手は自作（tools/driver.py）: kn5 は build/driver/kanachu_driver.kn5、
+姿勢・ハンドルの動き・driver3d.ini は車のフォルダに入る。zip は AC の content/ の形（content/cars/<車名>/…、content/driver/kanachu_driver.kn5）。
 """
 import argparse
-import hashlib
 import shutil
 import subprocess
 import tempfile
@@ -23,12 +23,9 @@ import sfx
 import skins
 import textures
 import ui
+import driver
 
 ROOT = paths.WORK
-DRIVER_VENDOR = ROOT / "vendor" / "driver_jetset"
-# (vendor/driver_jetset/ 内, build 内)。無いと CSP が物理開始直後に落ちる。
-DRIVER_FILES = [("driver3d.ini", "data/driver3d.ini"), ("driver_base_pos.knh", "driver_base_pos.knh"),
-                ("animations/steer.ksanim", "animations/steer.ksanim")]
 EXTERIOR_BLEND = ROOT / "design" / "exterior" / "kanachu_exterior.blend"
 PAINT_PNG = ROOT / "design" / "livery" / "paint_new2023.png"
 
@@ -53,40 +50,6 @@ def export_exterior(out, tex_dir, work):
     export_kn5(prepared, out, tex_dir)
 
 
-def driver_md5_problems(src_dir):
-    """SOURCE.txt（行: "<vendor 内の相対パス> md5=<大文字 MD5>"）と実ファイルの MD5 を照合し、食い違いの一覧を返す。"""
-    src_dir = Path(src_dir)
-    sf = src_dir / "SOURCE.txt"
-    if not sf.is_file():
-        return ["SOURCE.txt が無い"]
-    want = {}
-    for line in sf.read_text(encoding="utf8").splitlines():
-        if " md5=" in line:
-            name, md5 = line.rsplit(" md5=", 1)
-            want[name.strip()] = md5.strip().upper()
-    probs = []
-    for src, _ in DRIVER_FILES:
-        f = src_dir / src
-        if src not in want:
-            probs.append("SOURCE.txt に %s の MD5 が無い" % src)
-        elif f.is_file() and hashlib.md5(f.read_bytes()).hexdigest().upper() != want[src]:
-            probs.append("%s の MD5 が SOURCE.txt と違う" % src)
-    return probs
-
-
-def copy_driver(out):
-    out = Path(out)
-    miss = [src for src, _ in DRIVER_FILES if not (DRIVER_VENDOR / src).is_file()]
-    if miss:
-        raise SystemExit("ドライバーのファイルが無い (%s): vendor/driver_jetset/ が要る（自作の運転手ファイルに差し替えるまで）" % ", ".join(miss))
-    probs = driver_md5_problems(DRIVER_VENDOR)
-    if probs:
-        raise SystemExit("ドライバーのファイルが SOURCE.txt と合わない: %s" % "; ".join(probs))
-    for src, dst in DRIVER_FILES:
-        (out / dst).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(DRIVER_VENDOR / src, out / dst)
-
-
 def blurred_ellipse(size, fx, fy, sigma, peak=191):
     """上から見た外形の楕円（画像の上が前）。fx, fy は画像に占める幅・高さの割合。灰色 + A=255。"""
     m = Image.new("L", (size, size), 0)
@@ -103,7 +66,7 @@ def write_shadows(out):
 
 
 def assemble(out=None, zip_path=None, model="exterior"):
-    """out を消して作り直す。model は exterior（既定）か box（M1 の箱）。zip_path があれば zip も作る（既定は build/<車名>.zip、None なら作らない）。"""
+    """out を消して作り直す（運転手の kn5 は out.parent/driver/ に置く）。model は exterior（既定）か box（M1 の箱）。zip_path があれば zip も作る（既定は build/<車名>.zip、None なら作らない）。"""
     out = Path(out or paths.BUILD)
     if out.exists():
         shutil.rmtree(out)
@@ -120,7 +83,7 @@ def assemble(out=None, zip_path=None, model="exterior"):
             raise ValueError("model は exterior か box: %r" % model)
         export_kn5(ROOT / "blender/m1_collider.blend", out / "collider.kn5", tex)
     physics.build(out / "data")
-    copy_driver(out)
+    driver.build(out, out.parent / "driver")
     sfx.build(out)
     ui.build(out)
     skins.build(out)
@@ -134,7 +97,8 @@ def assemble(out=None, zip_path=None, model="exterior"):
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
             for f in sorted(out.rglob("*")):
                 if f.is_file():
-                    z.write(f, Path(out.name) / f.relative_to(out))
+                    z.write(f, Path("content/cars") / out.name / f.relative_to(out))
+            z.write(out.parent / "driver" / (driver.DRIVER_NAME + ".kn5"), "content/driver/%s.kn5" % driver.DRIVER_NAME)
     return out
 
 

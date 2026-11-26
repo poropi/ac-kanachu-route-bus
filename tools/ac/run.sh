@@ -4,6 +4,7 @@
 #   環境変数 CAR=<車フォルダ>（既定 kanachu_route_bus）: 別の既存の車で走らせる（こちらの車は送らない）。
 #   環境変数 SKIN=<スキンのフォルダ名>（既定: 車のスキンを名前順に並べた最初、0_new2023）。NIGHT=1: 夜（SUN_ANGLE 120 ≒ 21 時）にしてヘッドライトを点ける。
 #   環境変数 NOPROBE=1: Lua アプリを入れず、ログの SESSION INFO RECEIVED（物理開始後）+20 秒で閉じる。
+#   自作の車のときは、運転手の build/driver/kanachu_driver.kn5 も送り、content\driver\kanachu_driver.kn5 に置く（上書き。試走の後も残す。content\driver の他のファイルには触らない）。
 # AC が使われていなければ、build/kanachu_route_bus をゲーム PC（ssh のホスト名は環境変数 GAME_PC、または tools/ac/local.env）に置き直し、Lua アプリを送り、走らせて記録を export/ac/<tag>/ に回収する。
 set -u
 TRACK=${1:?track}; LAYOUT=${2-}; MODE=${3:?mode}; DUR=${4:-30}
@@ -22,6 +23,7 @@ ps() { ssh $O $GAME_PC "powershell.exe -NoProfile -Command \"$1\"" 2>/dev/null |
 # 承認制の試走を古い build や壊れた build で使わない（転送の前に検査する）
 [ "$CAR" != kanachu_route_bus ] || python3 "$ROOT/tools/validate.py" || { echo "STOP: validate.py が NG です（python3 tools/assemble.py で組み直してください）"; exit 1; }
 [ "$CAR" != kanachu_route_bus ] || [ -d "$ROOT/build/kanachu_route_bus" ] || { echo "STOP: build/kanachu_route_bus がありません（python3 tools/assemble.py）"; exit 1; }
+[ "$CAR" != kanachu_route_bus ] || [ -s "$ROOT/build/driver/kanachu_driver.kn5" ] || { echo "STOP: build/driver/kanachu_driver.kn5 がありません（python3 tools/assemble.py）"; exit 1; }
 st=$(ps "if(Get-Process acs -EA 0){'BUSY'}else{'idle'}" | tail -1)
 if [ "$st" != "idle" ]; then echo "STOP: AC is in use"; exit 1; fi
 TMP=$(mktemp -d) || exit 1
@@ -29,7 +31,8 @@ trap 'rm -rf "$TMP"' EXIT
 [ "$CAR" = kanachu_route_bus ] && { (cd "$ROOT/build" && zip -qr "$TMP/car.zip" kanachu_route_bus) || exit 1; }
 (cd "$ROOT/tools/ac" && zip -qr "$TMP/KanachuProbe.zip" KanachuProbe) || exit 1
 ps "New-Item -ItemType Directory -Force $D | Out-Null" >/dev/null
-scp -q "$TMP"/*.zip "$ROOT/tools/ac/launch.ps1" "$GAME_PC:Documents/kanachu-validation/" || { echo "STOP: scp 失敗"; exit 1; }
+DRV=""; [ "$CAR" = kanachu_route_bus ] && DRV="$ROOT/build/driver/kanachu_driver.kn5"
+scp -q "$TMP"/*.zip "$ROOT/tools/ac/launch.ps1" ${DRV:+"$DRV"} "$GAME_PC:Documents/kanachu-validation/" || { echo "STOP: scp 失敗"; exit 1; }
 LOUT=$(ssh $O $GAME_PC "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $D\\launch.ps1 -Tag $T -Track $TRACK -Layout ${LAYOUT:-NONE} -Mode $MODE -Duration $DUR -Car $CAR -NoProbe $NOPROBE ${SKIN:+-Skin $SKIN} -Night ${NIGHT:-0}" 2>&1 | LC_ALL=C tr -d '\r')
 echo "$LOUT" | tail -5
 if ! echo "$LOUT" | grep -q "^started $T"; then

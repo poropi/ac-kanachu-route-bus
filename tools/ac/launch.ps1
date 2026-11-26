@@ -34,6 +34,11 @@ if ($ownCar) {
   if (Test-Path "$ac\content\cars\$car") { Remove-Item "$ac\content\cars\$car" -Recurse -Force }
   Expand-Archive "$dir\car.zip" "$ac\content\cars" -Force
   if (-not (Test-Path "$ac\content\cars\$car\$car.kn5")) { throw 'car was not installed' }
+  # our driver model: overwrite only this one file under content\driver (it may stay installed after the run)
+  if (-not (Test-Path "$dir\kanachu_driver.kn5")) { throw 'kanachu_driver.kn5 was not sent' }
+  New-Item -ItemType Directory -Force "$ac\content\driver" | Out-Null
+  Copy-Item "$dir\kanachu_driver.kn5" "$ac\content\driver\kanachu_driver.kn5" -Force
+  if ((Get-Item "$ac\content\driver\kanachu_driver.kn5").Length -ne (Get-Item "$dir\kanachu_driver.kn5").Length) { throw 'driver kn5 was not installed' }
   # first skin folder by name (0_new2023) unless -Skin names one
   $first=Get-ChildItem "$ac\content\cars\$car\skins" -Directory -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -First 1
   if ($Skin) { if (-not (Test-Path "$ac\content\cars\$car\skins\$Skin")) { throw "skin $Skin was not found in $car" }; $skin=$Skin }
