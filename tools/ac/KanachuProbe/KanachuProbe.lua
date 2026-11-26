@@ -409,7 +409,7 @@ function script.update(dt)
   elapsed = elapsed + dt
   local c = ac.getCar(0)
   if not c then return end
-  if elapsed > duration + WAIT + 90 then record('timeout'); finish(); return end
+  if elapsed > duration + WAIT + 180 then record('timeout'); finish(); return end   -- standing phases (Z, S, S2) and the end shots need ~90 s on top of duration
   if elapsed - lastLog >= 0.1 then lastLog = elapsed
     local ok, line = pcall(sample, c, elapsed); csv(ok and line or ('err,'..tostring(line)))
   end
@@ -433,7 +433,6 @@ function script.update(dt)
     end
     stepShots(dt, c); return
   end
-  local t = elapsed - driveStart    -- circle: driveStart is reset after each standing phase (Z, S, S2), so the 30 s shots and the end never start while standing
   if mode == 'circle' or mode == 'circleramp' then
     local f = (mode == 'circleramp' and phase == 'B' and phaseBT and elapsed - phaseBT >= 12) and rampControl or circleControl
     local ok, err = pcall(f, c, dt); if not ok then record('ctlerr '..tostring(err)) end
@@ -441,6 +440,7 @@ function script.update(dt)
   if mode == 'accel' then local ok, err = pcall(accelControl, c); if not ok then record('ctlerr '..tostring(err)) end end
   if mode == 'skidpad' then local ok, err = pcall(skidpadControl, c, dt); if not ok then record('ctlerr '..tostring(err)) end end
   stepShots(dt, c)
+  local t = elapsed - driveStart    -- read after the controls: circle resets driveStart after each standing phase (Z, S, S2), so the 30 s shots and the end never start while standing
   if not shotJob and not endShot and t >= nextShot and t < duration then startShots(string.format('t%03d', nextShot)); nextShot = nextShot + 30 end
   if t > duration and not shotJob then
     if not endShot then endShot = true; startShots('end') else finish() end

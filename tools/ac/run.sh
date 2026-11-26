@@ -42,7 +42,7 @@ if ! echo "$LOUT" | grep -q "^started $T"; then
   exit 1
 fi
 FOUND=0
-for i in $(seq 1 $(( (DUR + 400) / 5 ))); do
+for i in $(seq 1 $(( (DUR + 500) / 5 ))); do
   sleep 5
   r=$(ps "if(Test-Path $D\\restored-$T.txt){'DONE'}" | tail -1)
   [ "$r" = "DONE" ] && { FOUND=1; break; }

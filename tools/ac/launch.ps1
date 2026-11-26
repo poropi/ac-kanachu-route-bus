@@ -95,7 +95,7 @@ function Read-Shared([string]`$f) { `$fs=[IO.File]::Open(`$f,'Open','Read','Read
 try {
   `$env:SteamAppId='244210'
   `$p=Start-Process "`$ac\acs.exe" -WorkingDirectory `$ac -PassThru
-  `$deadline=(Get-Date).AddSeconds($(if($NoProbe){$Duration+60}else{$Duration+300}))
+  `$deadline=(Get-Date).AddSeconds($(if($NoProbe){$Duration+60}else{$Duration+400}))
   while(-not `$p.HasExited -and (Get-Date) -lt `$deadline -and -not (Test-Path "`$dir\`$tag.complete")) {
     Start-Sleep -Seconds 1; `$p.Refresh()
     try {
