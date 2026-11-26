@@ -129,7 +129,6 @@ def test_head_meshes_under_head_bone(kn5):
 
 def test_materials_and_textures(kn5):
     k, _ = kn5
-    assert {m.shader for m in k.materials} == {"ksPerPixel"}
     names = {t.name for t in k.textures}
     for m in k.materials:
         assert m.tex and m.tex[0][0] == "txDiffuse" and m.tex[0][2] in names
@@ -166,3 +165,18 @@ def test_roundtrip_bytes(kn5, tmp_path):
     again = tmp_path / "again.kn5"
     kn5io.write(kn5io.read(out), again)
     assert again.read_bytes() == out.read_bytes()
+
+
+def test_shaders_by_node_type(kn5):
+    """骨で動くメッシュ（種類 3）は ksSkinnedMesh、頭の固定メッシュ（種類 2）は ksPerPixel。"""
+    k, _ = kn5
+    used = {2: set(), 3: set()}
+    for n in kn5io.walk(k.root):
+        if n.cls in used:
+            used[n.cls].add(n.matid)
+    assert used[2] and used[3]
+    assert {k.materials[i].shader for i in used[3]} == {"ksSkinnedMesh"}
+    assert {k.materials[i].shader for i in used[2]} == {"ksPerPixel"}
+    for i in used[3]:   # Kunos の骨で動くマテリアルと同じ基本の ks* と bones を持つ
+        props = {p[0] for p in k.materials[i].props}
+        assert {"bones", "ksAmbient", "ksDiffuse", "ksSpecular", "ksSpecularEXP", "ksEmissive", "ksAlphaRef"} <= props

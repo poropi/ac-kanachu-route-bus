@@ -24,9 +24,9 @@ opt = lambda f, d=None: argv[argv.index(f) + 1] if f in argv else d
 ARMATURE = "DRIVER:DRIVER"
 HEAD_BONE = "DRIVER:RIG_Head"
 MAX_INFLUENCE = 4
-# 骨で動くメッシュのシェーダー。指定（ksPerPixel）どおり。Kunos の標準は ksSkinnedMesh_NMDetaill なので、
-# ゲームで骨が効かなければ --skinned-shader ksSkinnedMesh を試す。
-SKINNED_SHADER = opt("--skinned-shader", "ksPerPixel")
+# 骨で動くメッシュ（種類 3）のシェーダー。ksPerPixel では骨が効かないので ksSkinnedMesh を既定にする
+# （Kunos は ksSkinnedMesh_NMDetaill）。--skinned-shader で変えられる。頭の固定メッシュ（種類 2）は ksPerPixel。
+SKINNED_SHADER = opt("--skinned-shader", "ksSkinnedMesh")
 # Blender (bx,by,bz) -> kn5 (-bx, bz, by)。行列の共役に使う（自分自身の逆行列、向きは保つ）
 C = np.array([[-1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], "f8")
 def to_kn5(a): return np.c_[-a[:, 0], a[:, 2], a[:, 1]]
@@ -57,8 +57,8 @@ def matid(ob, shader):
     if key not in mat_index:
         tname = m.name + ".dds"
         if tname not in texs: texs[tname] = kn5io.Tex(1, tname, material_texture(m))
-        props = [("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
-                 ("ksEmissive", 0.0), ("ksAlphaRef", 0.0)]
+        props = ([("bones", 0.0)] if shader != "ksPerPixel" else []) + [("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
+                 ("ksEmissive", 0.0), ("ksAlphaRef", 0.0)]   # Kunos の骨で動くマテリアルも bones と基本の ks* を持つ
         name = m.name if shader == "ksPerPixel" else m.name + "_skinned"
         mats.append(kn5io.Mat(name, shader, 0, 0, 0, [(p, v, bytes(36)) for p, v in props], [("txDiffuse", 0, tname)]))
         mat_index[key] = len(mats) - 1
