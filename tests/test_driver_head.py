@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 
 import numpy as np
+from driver_skeleton import AC_AXES_BONES
 import pytest
 
 import driver_pose as dp
@@ -54,14 +55,15 @@ def pair(tmp_path_factory):
 
 
 def test_neck_and_head_bones_have_ac_axes(pair):
-    """新しい書き出しの首・頭の骨の世界の回転は単位行列（AC の軸: Y 上・Z 前・X = 運転手の左）。位置は前のまま。"""
+    """新しい書き出しの胸（首の親）・首・頭の骨の世界の回転は単位行列（AC の軸: Y 上・Z 前・X = 運転手の左）。位置は前のまま。"""
     (_, old), (_, new) = pair
     Wo, Wn = dp.fk(dp.rest_from_kn5(old)), dp.fk(dp.rest_from_kn5(new))
-    for b in ("DRIVER:RIG_Nek", "DRIVER:RIG_Head"):
+    assert set(AC_AXES_BONES) == {"DRIVER:RIG_Cest", "DRIVER:RIG_Nek", "DRIVER:RIG_Head"}
+    for b in AC_AXES_BONES:
         assert np.allclose(Wn[b][:3, :3], np.eye(3), atol=1e-6), b
         assert np.allclose(Wn[b][3, :3], Wo[b][3, :3], atol=1e-6), b
     for b in Wo:                                     # ほかの骨はそのまま
-        if b not in ("DRIVER:RIG_Nek", "DRIVER:RIG_Head"):
+        if b not in AC_AXES_BONES:
             assert np.allclose(Wn[b], Wo[b], atol=1e-6), b
 
 

@@ -90,4 +90,5 @@ NECK_MESH = "DRIVER:NECK"
 # そこで kn5 の書き出し（tools/driver_to_kn5.py）で 2 本とも世界の回転を単位行列にする（位置はそのまま）。
 # 座った姿勢では首は上体と一緒に前傾するので、ヨーの軸は鉛直から前傾の分（約 5°）だけ前へ倒れる（Kunos の首の約 14° を足すより鉛直に近い）。逆バインド行列・子の骨の相対行列・頭のメッシュの頂点は
 # この向きから計算するので、どの姿勢でも頂点の世界位置は変わらない（knh・ksanim は世界の向きの差で解くので自動でこの向きに合う）。
-AC_AXES_BONES = ("DRIVER:RIG_Nek", "DRIVER:RIG_Head")
+# 首の親の RIG_Cest も同じにする（Kunos の RIG_Cest も単位）。AC が首の回転を親の側から掛ける作りでも、ヨーの軸が鉛直に近くなる。
+AC_AXES_BONES = ("DRIVER:RIG_Cest", "DRIVER:RIG_Nek", "DRIVER:RIG_Head")
