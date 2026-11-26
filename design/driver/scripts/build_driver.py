@@ -15,7 +15,7 @@ RENDERS = DRIVER / "renders"
 sys.path[:0] = [str(SCRIPTS), str(DESIGN.parent / "tools")]
 
 from driver_skeleton import BONES, HEAD_MESHES, SKINNED_MESHES
-from driver_gloves import build_gloves, hand_bones, grip, grip_frame
+from driver_gloves import SIDE_X, build_gloves, hand_bones, grip, grip_frame
 
 
 def rig_name(joint, side=None):
@@ -38,7 +38,7 @@ def rest_skeleton():
     segment(rig_name("Cest"), (0, -.003, 1.064), (0, -.003, 1.323))
     segment(rig_name("Nek"), (0, -.003, 1.323), (0, .013, 1.38))
     segment(rig_name("Head"), (0, .013, 1.38), (0, .0, 1.611))
-    for side, sign in (("L", 1), ("R", -1)):
+    for side, sign in SIDE_X.items():
         def point(px, py, y):
             return landmark(px, py, y, sign)
         shoulder = point(613, 371, 0)
@@ -150,7 +150,7 @@ def seated_pose(arm):
     center_bone.keyframe_insert(data_path="location", frame=1, group=center_bone.name)
     bpy.context.scene.frame_set(2)
     set_direction(arm.pose.bones[rig_name("Cest")], (0, .32, 1))
-    for side, s in (("L", 1), ("R", -1)):
+    for side, s in SIDE_X.items():
         def pb(joint):
             return arm.pose.bones[rig_name(joint, side)]
         set_direction(pb("Leg"), (s * .19, .97, -.16))
@@ -208,12 +208,9 @@ def paper_background(scene):
     scene.compositing_node_group = tree
     tree.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")
     source = tree.nodes.new("CompositorNodeRLayers")
-    flip = tree.nodes.new("CompositorNodeFlip")
-    flip.inputs["Flip X"].default_value = True
-    tree.links.new(source.outputs["Image"], flip.inputs["Image"])
     over = tree.nodes.new("CompositorNodeAlphaOver")
     over.inputs["Background"].default_value = (1, 1, 1, 1)
-    tree.links.new(flip.outputs["Image"], over.inputs["Foreground"])
+    tree.links.new(source.outputs["Image"], over.inputs["Foreground"])
     output = tree.nodes.new("NodeGroupOutput")
     tree.links.new(over.outputs[0], output.inputs[0])
     return over
@@ -256,8 +253,8 @@ def setup_studio(arm):
     scene.world.node_tree.nodes["Background"].inputs[0].default_value = (1, 1, 1, 1)
     scene.world.node_tree.nodes["Background"].inputs[1].default_value = .74
     for name, pos, power, size in [
-        ("Softbox", (1.4, 2.2, 3.25), 48, 3.0),
-        ("Edge light", (-1.3, -1.6, 2.5), 38, 2.5),
+        ("Softbox", (-1.4, 2.2, 3.25), 48, 3.0),
+        ("Edge light", (1.3, -1.6, 2.5), 38, 2.5),
     ]:
         lamp = bpy.data.lights.new(name, "AREA")
         lamp.energy, lamp.shape, lamp.size = power, "DISK", size
@@ -275,7 +272,7 @@ def setup_studio(arm):
     scene.frame_set(1)
     cams = {
         "front": camera("Front", (0, 3.0, middle_z), center),
-        "side": camera("Left side", (3, (505 - 512)*.00115, middle_z), (0, (505 - 512)*.00115, middle_z)),
+        "side": camera("Left side", (-3, (505 - 512)*.00115, middle_z), (0, (505 - 512)*.00115, middle_z)),
         "back": camera("Back", (0, -3.0, middle_z), center),
         "seated_hands": camera("Driver eye", eye, hub + Vector((0, .043, -.028)), 20),
     }

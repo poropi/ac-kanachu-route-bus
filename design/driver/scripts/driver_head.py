@@ -12,7 +12,7 @@ TAU = 2 * pi
 
 def world(p):
     x, depth, row = p
-    return ((x - 512) * SCALE, (505 - depth) * SCALE, (1487 - row) * SCALE)
+    return ((512 - x) * SCALE, (505 - depth) * SCALE, (1487 - row) * SCALE)
 
 
 def svg_material(name, width, height, view, body, roughness=.78):
@@ -105,8 +105,8 @@ class Part:
         return len(self.v)-1
 
     def face(self, indices, material, uv):
-        self.f.append(list(reversed(indices)))
-        self.attrs.append((material, list(reversed(uv))))
+        self.f.append(indices)
+        self.attrs.append((material, uv))
 
     def grid(self, rows, n, fun, material, uvfun, wrap=True, flip=False):
         cols = n if wrap else n + 1

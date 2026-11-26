@@ -130,9 +130,10 @@ class Cloth:
         return [tex(512+self.coords[q][0]+ofs,self.coords[q][2]) for q in ids]
 
     def finish(self,mats):
-        verts=[(x*SCALE,y*SCALE,(1487-py)*SCALE) for x,y,py in self.coords]
+        # Positive drawing x is screen-right in the front elevation, i.e. world -X.
+        verts=[(-x*SCALE,y*SCALE,(1487-py)*SCALE) for x,y,py in self.coords]
         mesh=bpy.data.meshes.new("Tailoring, shirt, trousers and leather")
-        mesh.from_pydata(verts,[],self.faces)
+        mesh.from_pydata(verts,[],[face[::-1] for face in self.faces])
         for m in mats:
             mesh.materials.append(m)
         mesh.update()
@@ -140,7 +141,7 @@ class Cloth:
         for face,coords,slot in zip(mesh.polygons,self.uv,self.slots):
             face.material_index=slot
             face.use_smooth=len(face.vertices)<=4
-            for k,c in zip(face.loop_indices,coords):
+            for k,c in zip(face.loop_indices,reversed(coords)):
                 uv.data[k].uv=c
         ob=bpy.data.objects.new("DRIVER:BODY",mesh)
         bpy.context.collection.objects.link(ob)

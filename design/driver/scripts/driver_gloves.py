@@ -7,7 +7,7 @@ import numpy as np
 from mathutils import Quaternion, Vector
 
 
-SIDES = ("L", "R")
+SIDE_X = {"L": -1, "R": 1}  # Facing +Y in Blender.
 FINGERS = ("Pinkie", "Ring", "Middle", "Index", "Thumb")
 KNUCKLES = {
     "Pinkie": (.071, -.0234, .054),
@@ -19,7 +19,7 @@ KNUCKLES = {
 
 def hand_frame(side):
     """手首、指先向き、親指側、手の甲向き（アーマチュアのレスト座標）。"""
-    sign = 1 if side == "L" else -1
+    sign = SIDE_X[side]
     wrist = Vector((sign * .2875, -.006, (1487 - 728) * .00115))
     axis = Vector((.594, 0, -.805)).normalized()
     outer = Vector((-axis.z, 0, axis.x))
@@ -54,7 +54,7 @@ def finger_joints(digit):
 
 def hand_bones():
     bones = {}
-    for side in SIDES:
+    for side in SIDE_X:
         bones[f"DRIVER:RIG_HAND_{side}"] = (
             position(side, 0, 0, 0), position(side, .076, 0, -.001))
         for digit in FINGERS:
@@ -81,7 +81,7 @@ def grip(arm):
         "Ring": ((37, 77, 27), (6.5,) * 3),
         "Pinkie": ((27.5, 70, 15.5), (5.5,) * 3),
     }
-    for side in SIDES:
+    for side in SIDE_X:
         _, _, thumb_side, dorsum = hand_frame(side)
         for digit, (angles, planes) in settings.items():
             for name, angle, plane in zip(bone_names(side, digit), angles, planes):
@@ -287,7 +287,7 @@ class GloveGeometry:
 
 def build_gloves():
     geo = GloveGeometry()
-    for side in SIDES:
+    for side in SIDE_X:
         geo.make_hand(side)
     mesh = bpy.data.meshes.new("Tailored cotton gloves")
     mesh.from_pydata(geo.verts,[],geo.faces)
