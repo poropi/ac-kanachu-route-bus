@@ -50,6 +50,8 @@ def test_missing_bone_and_unweighted_vertex_fail(tmp_path):
     ("tall", "頭頂"),
     ("unpacked_image", "パック"),
     ("missing_mesh", "DRIVER:BODY"),
+    ("mirrored", "左右が逆"),
+    ("backwards", "向きが逆"),
 ])
 def test_each_violation_is_caught(tmp_path, brk, needle):
     problems = run_check(make(tmp_path, brk), tmp_path)

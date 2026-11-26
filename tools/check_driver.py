@@ -2,7 +2,7 @@
 
 blender -b --python tools/check_driver.py -- --blend design/driver/kanachu_driver.blend --json out.json
 check(blend_path=None) -> 問題のリスト（空なら合格）。blend_path が None なら今開いている .blend を検査する。
-座標は Blender のまま（+Y が前、+X がキャラの左、+Z が上、足が原点、m）。
+座標は Blender のまま（+Y が前、キャラの左が -X・右が +X、+Z が上、足が原点、m。kn5 では左が +x）。
 骨名・メッシュ名の定義は tools/driver_skeleton.py（Blender の Python からは --python の場所が
 sys.path に入らないので、このファイルの隣から読む）。
 """
@@ -60,6 +60,27 @@ def skeleton_problems(arm):
     return bad
 
 
+SIDE_BONES = ("Clave", "Shoulder", "Arm", "ForeArm", "HAND", "Leg", "Shin", "Foot")
+
+
+def side_problems(arm):
+    """左右と向きの検査（レスト位置のワールド座標）。キャラは +Y を向き、左手は -X・右手は +X。
+    向き: 足の骨（Foot = 爪先側）が踵の骨（Hill）より +Y にあること（顔のメッシュは形が自由で頑健に判定できないので使わない）。"""
+    bad = []
+    M = np.array(arm.matrix_world, "f8")
+    head = {b.name: M[:3, :3] @ np.array(b.head_local) + M[:3, 3] for b in arm.data.bones}
+    for base in SIDE_BONES:
+        for side, sign, word in (("L", -1, "左 -X"), ("R", 1, "右 +X")):
+            n = "DRIVER:RIG_%s_%s" % (base, side)
+            if n in head and head[n][0] * sign <= 0:
+                bad.append("左右が逆: %s は %s 側（x=%.3f）のはず。キャラは +Y を向き、左は -X、右は +X" % (n, word, head[n][0]))
+    for side in "LR":
+        toe, heel = "DRIVER:RIG_Foot_" + side, "DRIVER:RIG_Hill_" + side
+        if toe in head and heel in head and head[toe][1] <= head[heel][1]:
+            bad.append("向きが逆: %s が %s より前（+Y）にない。キャラは +Y を向く" % (toe, heel))
+    return bad
+
+
 def skinned_problems(ob, arm):
     bad = []
     mods = [m for m in ob.modifiers if m.type == "ARMATURE"]
@@ -92,6 +113,7 @@ def check(blend_path=None):
         arm = None
     else:
         bad += skeleton_problems(arm)
+        bad += side_problems(arm)
 
     for n in SKINNED_MESHES + HEAD_MESHES:
         if n not in O or O[n].type != "MESH":

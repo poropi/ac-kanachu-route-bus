@@ -129,3 +129,30 @@ def test_cockpit_json_shape():
     assert 0.15 < COCKPIT["rim_radius"] < 0.30
     assert COCKPIT["pedal_accel"][0] < COCKPIT["pedal_brake"][0]   # 右（kn5 の -x 側）がアクセル
     assert COCKPIT["notes"]
+
+
+def test_unreachable_wheel_fails(solved, tmp_path):
+    rest, _, _, kn5 = solved
+    far = dict(COCKPIT)
+    far["wheel_center"] = [COCKPIT["wheel_center"][0], COCKPIT["wheel_center"][1], COCKPIT["wheel_center"][2] + 0.4]
+    with pytest.raises(dp.UnreachableError):
+        dp.solve_seated(rest, far)
+    cj, out = tmp_path / "far.json", tmp_path / "x.knh"
+    cj.write_text(json.dumps(far), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(ROOT / "tools/driver_pose.py"), "--kn5", str(kn5), "--cockpit", str(cj),
+                        "--out", str(out)], capture_output=True, text=True)
+    assert r.returncode != 0 and "届かない" in r.stderr
+    assert not out.exists()
+
+
+def test_grip_priority_over_legs(solved):
+    """握りの高さが最優先: ペダルが遠くて脚が届かなくても、握り角は上（最初に届く角度）のまま、脚だけ諦めて report に残す。"""
+    rest, _, report, _ = solved
+    far = dict(COCKPIT)
+    for k in ("pedal_accel", "pedal_brake"):
+        far[k] = [COCKPIT[k][0], COCKPIT[k][1], COCKPIT[k][2] + 0.6]
+    rep = {}
+    dp.solve_seated(rest, far, report=rep)
+    assert rep["legs_on_pedals"] is False
+    assert rep["grip_deg"] == report["grip_deg"]
+    assert report["legs_on_pedals"] is True

@@ -37,6 +37,7 @@ CENTER, CEST, HEAD = P + "RIG_Center", P + "RIG_Cest", P + "RIG_Head"
 SEAT_CLEARANCE = 0.10                        # 腰の骨が座面の上にある高さ (m)
 SEAT_HALF_DEPTH = 0.24                       # 座面の奥行 ≈ 0.48 m の半分。腰は seat_point から前後にこの範囲で動く
 KNEE_MARGIN = 0.03                           # 膝とハンドルの柱の箱の間に空ける余裕 (m)
+HAND_TOLERANCE = 0.02                        # 手のひらとリムの距離の許容 (m)。超えたらエラー
 MAX_LEAN = 20.0                              # 上体の前傾の上限 (度)
 MIN_ELBOW_BEND = 16.0                        # 肘の曲げの下限 (度)。試験の 15° に余裕を持たせる
 GRIP_MAX_DEG = 100                           # 握る角度の下限（真上から。60 が「10 時と 2 時」、大きいほど下）
@@ -103,6 +104,10 @@ def _desc(b):
 def _repose(B, b, delta):
     for d in _desc(b):
         B[d] = delta @ B[d]
+
+
+class UnreachableError(RuntimeError):
+    pass
 
 
 def pos(M):
@@ -180,7 +185,7 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
     """座った姿勢を解く。grip_deg は握りたいいちばん上の角度（真上から）。そこから GRIP_MAX_DEG まで、届くいちばん上を選ぶ。
 
     report に dict を渡すと、grip_deg（選んだ握り角）・lean_deg（上体の前傾、前が正）・pelvis_slide_m（座面の中心からの前後のずれ、前が正）・
-    elbow_bend_deg（L, R）・hand_miss_m（L, R）・leg_miss_m（L, R）を入れる。
+    legs_on_pedals（脚がペダルに届く姿勢か）・elbow_bend_deg（L, R）・hand_miss_m（L, R）・leg_miss_m（L, R）を入れる。
     """
     L0 = {n: np.asarray(rest[n], dtype=float).T for n, _ in BONES}
     W0 = world_of(L0)
@@ -260,8 +265,8 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
     slides = np.arange(-SEAT_HALF_DEPTH, SEAT_HALF_DEPTH + 0.001, 0.02)
     cache = {float(p): leaned(p) for p in phis}
     best = None
-    for with_legs in (True, False):
-        for g in np.arange(float(grip_deg), GRIP_MAX_DEG + 0.01, 1.0):
+    for g in np.arange(float(grip_deg), GRIP_MAX_DEG + 0.01, 1.0):       # 握りの高さが最優先
+        for with_legs in (True, False):                                  # 同じ角度ならペダルに届く姿勢を先に
             cands = []
             for phi, B in cache.items():
                 for d in slides:
@@ -273,24 +278,20 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
                                                    <= np.linalg.norm(sh["L"] - pr) + np.linalg.norm(sh["R"] - pl)) \
                         else {"L": -1.0, "R": 1.0}
                     if feasible(B, t, g, sgn, with_legs):
-                        cands.append(((phi / MAX_LEAN) ** 2 + (d / SEAT_HALF_DEPTH) ** 2, phi, d, g, sgn))
+                        cands.append(((phi / MAX_LEAN) ** 2 + (d / SEAT_HALF_DEPTH) ** 2, phi, d, g, sgn, with_legs))
             if cands:
                 best = min(cands, key=lambda c: c[0])
                 break
         if best:
             break
-    if best is None:    # どの角度でも届かない: 最も前傾して前へ出て、上限の角度で届く所まで
-        phi, d, g = MAX_LEAN, SEAT_HALF_DEPTH, float(GRIP_MAX_DEG)
-        t = np.array([seat[0], ty, seat[2] + d])
-        B = cache[float(phi)]
-        sh = {a: pos(B[side_bones(a)[0]]) + t for a in "LR"}
-        pl, pr = (rim_points(cockpit, g, sg)[0][0] for sg in (1.0, -1.0))
-        sgn = {"L": 1.0, "R": -1.0} if (np.linalg.norm(sh["L"] - pl) <= np.linalg.norm(sh["L"] - pr)) else {"L": -1.0, "R": 1.0}
-        best = (0, phi, d, g, sgn)
-    _, phi, d, g, sgn = best
+    if best is None:
+        raise UnreachableError("手がリムに届かない: 握り角 %g〜%g° のどれでも、前傾 %g° まで・腰の前後 ±%g m・肘の曲げ %g° 以上で、"
+                               "両手がリムに届く姿勢が無い（ハンドルが遠い、または腕が短い）"
+                               % (grip_deg, GRIP_MAX_DEG, MAX_LEAN, SEAT_HALF_DEPTH, MIN_ELBOW_BEND))
+    _, phi, d, g, sgn, legs_ok = best
     t = np.array([seat[0], ty, seat[2] + d])
     B = {n: M.copy() for n, M in cache[float(phi)].items()}
-    rep = {"grip_deg": float(g), "lean_deg": float(phi), "pelvis_slide_m": float(d)}
+    rep = {"grip_deg": float(g), "lean_deg": float(phi), "pelvis_slide_m": float(d), "legs_on_pedals": bool(legs_ok)}
     # 腕
     for a in "LR":
         arm, fore, hand, middle = side_bones(a)
@@ -300,6 +301,8 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
         miss = _two_bone_chain(B, arm, fore, hand, T, pole, MIN_ELBOW_BEND)
         _repose(B, hand, about(Rh @ R_lean @ B[hand][:3, :3].T, pos(B[hand])))   # 手の向きを絶対値で決める
         rep.setdefault("hand_miss_m", {})[a] = float(miss)
+        if miss > HAND_TOLERANCE:
+            raise UnreachableError("手がリムに届かない: %s 側の手が %.3f m 外れた" % (a, miss))
     # 脚
     for a, (T, Rp) in leg_targets(B, t).items():
         leg, shin, hill = P + "RIG_Leg_" + a, P + "RIG_Shin_" + a, P + "RIG_Hill_" + a
@@ -366,7 +369,10 @@ def main():
     a = ap.parse_args()
     rest = rest_from_kn5(a.kn5)
     rep = {}
-    local = solve_seated(rest, json.load(open(a.cockpit, encoding="utf-8")), a.grip_deg, rep)
+    try:
+        local = solve_seated(rest, json.load(open(a.cockpit, encoding="utf-8")), a.grip_deg, rep)
+    except UnreachableError as e:
+        sys.exit("driver_pose: " + str(e))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     knhmod.write(to_knh(local), a.out)
     print("wrote", a.out, json.dumps(rep, default=float))
