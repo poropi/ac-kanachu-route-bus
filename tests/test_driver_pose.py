@@ -46,9 +46,9 @@ def solved(request, tmp_path_factory):
 
 
 def dist_to_grip_circle(p):
-    """点 p と握りの円（リムの面の中、管の中心線から外へ 管の半径 + 手のひらの厚みの半分）の距離。
-    2026-11-26 改訂: 手のひらの中心の目標は管の中心線でなく、管の表面の外側。"""
-    c, n, r = np.array(COCKPIT["wheel_center"]), np.array(COCKPIT["wheel_axis"]), dp.grip_radius(COCKPIT)
+    """点 p と握りの円（手のひらの中心の目標が乗る円。管の中心線から、外向きを運転手の側へ GRIP_TAU_DEG 倒した向きへ
+    管の半径 + 手のひらの厚みの半分ずらした円 = dp.grip_circle）の距離。2026-11-26 改訂: 手のひらはリムの管の上。"""
+    c, n, r = dp.grip_circle(COCKPIT)
     d = p - c
     off = float(np.dot(d, n))
     return float(np.hypot(np.linalg.norm(d - off * n) - r, off))
@@ -108,6 +108,22 @@ def test_grip_json_matches_skeleton():
     for n, d in deltas.items():
         assert np.allclose(d @ d.T, np.eye(3), atol=1e-5) and np.linalg.det(d) == pytest.approx(1.0, abs=1e-5), n
     assert 0.010 <= COCKPIT["rim_tube_radius"] <= 0.025
+
+
+def test_palm_on_top_of_tube(solved):
+    """手のひらの中心は管の上（運転手の側）: 管の中心線のいちばん近い点から見て、運転手の側の法線の向きの成分が、
+    ずらす量（管の半径 + 手のひらの厚みの半分）の半分より大きい。"""
+    _, local, _, _ = solved
+    W = dp.fk(local)
+    c, r = np.array(COCKPIT["wheel_center"]), COCKPIT["rim_radius"]
+    n = dp.unit(np.array(COCKPIT["wheel_axis"]))
+    up = dp.grip_up_normal(COCKPIT)
+    off = COCKPIT["rim_tube_radius"] + dp.PALM_HALF_THICKNESS
+    for a in "LR":
+        p = dp.palm_center(W, a)
+        d = p - c
+        q = c + r * dp.unit(d - np.dot(d, n) * n)          # 管の中心線のいちばん近い点
+        assert np.dot(p - q, up) > 0.5 * off, (a, float(np.dot(p - q, up)))
 
 
 def test_knee_outside_column_and_feet_on_pedals(solved):

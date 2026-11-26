@@ -13,11 +13,11 @@
     両腕が肘を MIN_ELBOW_BEND 以上曲げたまま届くいちばん上を選ぶ。そのうち前傾と前後のずれが小さい姿勢を取る
     （まず脚もペダルに届く姿勢から探し、無ければ脚を諦める）。どの角度も届かなければ、最大の前傾・前進・上限の角度で届く所まで。
     手のひらの中心 = 手首の骨と中指の付け根の中点。左右は骨名でなく肩の位置の近さで割り当てる。
-    2026-11-26 改訂（握り）: 手のひらはリムの管の表面に置き、指は曲げて握る。
-    - 手のひらの中心の目標は、管の中心線からリムの面の中で外へ (rim_tube_radius + PALM_HALF_THICKNESS) ずらした点
-      （= 半径 rim_radius + rim_tube_radius + PALM_HALF_THICKNESS の「握りの円」の上）。
+    2026-11-26 改訂（握り）: 手のひらはリムの管の上に置き、指を曲げて握る。
+    - 手のひらの中心の目標は、管の中心線から grip_offset_dir（外向きを運転手の側の法線へ GRIP_TAU_DEG 倒した向き）へ
+      (rim_tube_radius + PALM_HALF_THICKNESS) ずらした点（= grip_circle の「握りの円」の上）。
     - 手の向き: 小指の付け根から人差し指の付け根への向きをリムの接線（リムの上の向き）に、
-      手のひらをハンドルの中心へ向け、そこから手の座標で GRIP_TILT_DEG だけ回す（曲げた指が管を包むように）。
+      手のひらを管へ（ずらした向きの逆）向け、そこから手の座標で GRIP_TILT_DEG だけ回す（曲げた指が管を包むように）。
     - 指の骨（RIG_HAND_L/R の子孫の HAND_*）は design/driver/grip_fingers.json の回転（.blend の握りのフレーム 2）で曲げる。
  4. 腕・脚は 2 本の骨の解析的 IK（余弦定理）。肘は下と外、膝は前と上へ逃がす。足の母指球（Foot）をペダルの踏面へ、爪先を PEDAL_PITCH 下げる。
  5. 世界行列から親からの相対行列を作る。
@@ -45,10 +45,17 @@ SEAT_HALF_DEPTH = 0.24                       # 座面の奥行 ≈ 0.48 m の半
 KNEE_MARGIN = 0.03                           # 膝とハンドルの柱の箱の間に空ける余裕 (m)
 HAND_TOLERANCE = 0.02                        # 手のひらの中心と目標（握りの円の上の点）の距離の許容 (m)。超えたらエラー
 PALM_HALF_THICKNESS = 0.0163                 # 手のひらの厚みの半分 (m)。GLOVES の手のひらの中心の 2 cm 四方の頂点の、手のひらの法線方向の幅 0.0325 の半分
-# 手の向きの追加の回転（度、手の座標）: (指の付け根の並びのまわり, 手のひらの法線のまわり, 指の向きのまわり)。
-# 手のひらを管に平らに当てただけ（全部 0）では、.blend の曲げた指は管の 1.5〜3 cm 前で輪になり、親指が管に 13 mm めり込む。
-# 指の付け根の並びのまわりに倒して、指の付け根の側を管へ寄せると指が管を包む（値は GLOVES の頂点で、めり込みが最も浅い組を選んだ）。
-GRIP_TILT_DEG = (-50.0, 10.0, -15.0)
+# 手のひらを置く向き（2026-11-26 第 2 回）: 管の中心線から手のひらの中心へのずれの向き = 外向きの半径方向を、リムの面の法線の
+# 運転手の側（+y 側）へ GRIP_TAU_DEG 倒した向き。0 = リムの面の中で外（第 1 回。ほぼ水平なバスのハンドルでは手が下を向き、
+# 手首が 84° 折れた）、90 = 管の真上。手のひらは常にこの向きの逆（管）へ向ける。
+# 手の向きの追加の回転 GRIP_TILT_DEG（度、手の座標）: (指の付け根の並びのまわり, 手のひらの法線のまわり, 指の向きのまわり)。
+# 回転 0 では .blend の曲げた指が管から離れて輪になり、親指が管にめり込む。付け根の並びのまわりに倒すと指が管を包む。
+# 選び方（GLOVES の頂点を骨で動かして、θ = 0・±90 で測った）: τ を 0〜90° の 5° 刻み、回転を 5〜10° 刻みで総当たりし、
+#   手袋のめり込み ≤ 4 mm（試験の上限 6 mm に 2 mm の余裕）・親指のめり込み ≤ 0.5 mm・指が管の表面から 10 mm 以内に触れる・
+#   肘 ≥ 15°・前傾 ≤ 20°・頭が目より下 を満たす組のうち、座った姿勢の手首の折れ（前腕と手首→中指の付け根の角度）が最小のもの。
+#   τ 75° / (−55, 15, −20) で手首 20°（θ 0）、前傾 5°。τ 80〜85° は手首 15〜16° だがめり込みが 4.5 mm、±90° の内側の手の手首が大きい。
+GRIP_TAU_DEG = 75.0
+GRIP_TILT_DEG = (-55.0, 15.0, -20.0)
 GRIP_FINGERS_JSON = Path(__file__).resolve().parent.parent / "design" / "driver" / "grip_fingers.json"
 MAX_LEAN = 20.0                              # 上体の前傾の上限 (度)
 MIN_ELBOW_BEND = 16.0                        # 肘の曲げの下限 (度)。試験の 15° に余裕を持たせる
@@ -171,9 +178,25 @@ def hand_frame(B, arm):
     return f, l, np.cross(f, l) * (1.0 if arm == "L" else -1.0)
 
 
-def grip_radius(cockpit):
-    """握りの円の半径（リムの面の中）= 管の中心線の半径 + 管の半径 + 手のひらの厚みの半分。"""
-    return cockpit["rim_radius"] + cockpit["rim_tube_radius"] + PALM_HALF_THICKNESS
+def grip_up_normal(cockpit):
+    """リムの面の法線のうち、運転手の側（+y の成分を持つ側）の単位ベクトル。"""
+    n = unit(np.array(cockpit["wheel_axis"], dtype=float))
+    return -n if n[1] < 0 else n
+
+
+def grip_offset_dir(cockpit, radial):
+    """管の中心線から手のひらの中心へ向かう単位ベクトル: 外向きの半径方向を、運転手の側の法線へ GRIP_TAU_DEG 倒したもの。"""
+    tau = np.radians(GRIP_TAU_DEG)
+    return np.cos(tau) * radial + np.sin(tau) * grip_up_normal(cockpit)
+
+
+def grip_circle(cockpit):
+    """握りの円（手のひらの中心の目標が乗る円）の (中心, 法線, 半径)。管の中心線の円を、管の半径 + 手のひらの厚みの半分だけ
+    grip_offset_dir の向きへずらした円（法線はリムと同じ）。"""
+    off = cockpit["rim_tube_radius"] + PALM_HALF_THICKNESS
+    tau = np.radians(GRIP_TAU_DEG)
+    c = np.array(cockpit["wheel_center"], dtype=float) + off * np.sin(tau) * grip_up_normal(cockpit)
+    return c, unit(np.array(cockpit["wheel_axis"], dtype=float)), cockpit["rim_radius"] + off * np.cos(tau)
 
 
 def palm_center(W, arm):
@@ -223,7 +246,7 @@ def _two_bone_chain(B, b1, b2, end, target, pole, min_bend=0.0):
 # ---------- 本体 ----------
 def rim_points(cockpit, grip_deg, sign=None, radius=None):
     """リムの管の中心線上の、真上（面の中の上向き）から grip_deg の左右の 2 点。sign=±1 なら片側の 1 点だけ。
-    radius を渡すと、中心線の代わりに同じ面・同じ中心のその半径の円の上の点（握りの円は grip_radius）。"""
+    radius を渡すと、中心線の代わりに同じ面・同じ中心のその半径の円の上の点。"""
     c = np.array(cockpit["wheel_center"])
     n = unit(np.array(cockpit["wheel_axis"]))
     up = np.array([0.0, 1.0, 0.0])
@@ -268,20 +291,22 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None, fingers=None):
         _repose(B, HEAD, about(R.T, pos(B[HEAD])))                    # 頭は正面のまま
         return B
 
-    r_grip = grip_radius(cockpit)
+    off = cockpit["rim_tube_radius"] + PALM_HALF_THICKNESS
     top = rim_points(cockpit, 0.0, 1.0)[0][0] - c_w         # リムの面の中の「真上」
 
     def grip(B, t, a, sign, g):
-        """握りの円の g 度の点に a 側の手のひらの中心を置くときの (点, 手の回転, 手首の目標)。体座標。"""
+        """リムの g 度の点の上（握りの円の上）に a 側の手のひらの中心を置くときの (点, 手の回転, 手首の目標)。体座標。"""
         arm, fore, hand, middle = side_bones(a)
         c_b = c_w - t
-        pt = rim_points(cockpit, g, sign, r_grip)[0][0] - t
-        radial = unit(pt - c_b - np.dot(pt - c_b, axis) * axis)
+        pc = rim_points(cockpit, g, sign)[0][0] - t             # 管の中心線の点
+        radial = unit(pc - c_b - np.dot(pc - c_b, axis) * axis)
+        odir = grip_offset_dir(cockpit, radial)
+        pt = pc + off * odir
         tang = np.cross(axis, radial)
         if np.dot(tang, top) < 0:                      # 付け根の並びはリムの上の向き（人差し指が上）
             tang = -tang
         f0, l0, p0 = hand_frame(B, a)
-        palm = -radial                                 # 手のひらをハンドルの中心（管）へ
+        palm = -odir                                   # 手のひらを管へ
         hs = 1.0 if a == "L" else -1.0                 # 右手は左手の鏡: 軸が鏡に映るので回す角度は逆
         f1 = np.cross(tang, palm) * hs
         tb, tn, tf = hs * np.radians(GRIP_TILT_DEG)
@@ -339,7 +364,7 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None, fingers=None):
                     t = np.array([seat[0], ty, seat[2] + d])
                     # 左右: 肩が近いほうの点へ
                     sh = {a: pos(B[side_bones(a)[0]]) + t for a in "LR"}
-                    pl, pr = (rim_points(cockpit, g, sg, r_grip)[0][0] for sg in (1.0, -1.0))
+                    pl, pr = (rim_points(cockpit, g, sg)[0][0] for sg in (1.0, -1.0))
                     sgn = {"L": 1.0, "R": -1.0} if (np.linalg.norm(sh["L"] - pl) + np.linalg.norm(sh["R"] - pr)
                                                    <= np.linalg.norm(sh["L"] - pr) + np.linalg.norm(sh["R"] - pl)) \
                         else {"L": -1.0, "R": 1.0}

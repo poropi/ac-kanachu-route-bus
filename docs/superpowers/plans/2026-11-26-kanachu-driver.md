@@ -16,7 +16,7 @@
 - 運転手の kn5 は `content/driver/kanachu_driver.kn5`。配布 zip は `content/cars/kanachu_route_bus/…` と `content/driver/kanachu_driver.kn5` の形。
 - `driver3d.ini`: `[MODEL] NAME=kanachu_driver`、`POSITION=0,0,0`、`[STEER_ANIMATION] NAME=steer.ksanim`、`[SHIFT_ANIMATION]` は残す、`[HIDE_OBJECT_0..2]` = `DRIVER:GEO_Driver_FACE`・`DRIVER:HAIR`・`DRIVER:CAP`。
 - 席の位置は `driver_base_pos.knh` の `DRIVER:RIG_Center` の行列で表す。**（2026-11-26 改訂）** 体はモデルの大きさのまま（拡大しない）、腰は座面、上体の前傾 ≤ 20°、肘の曲げ ≥ 15°、手はリムの真上から 60°〜100° で届くいちばん上、頭は `DRIVER_EYE` より下（目を合わせる条件は取りやめ）。
-- 手のひらの中心と目標の距離 ≤ 0.02 m（ハンドルの回転角 0°、+90°、−90°）。**（2026-11-26 改訂: 手のひらはリムの管の表面、指は曲げて握る）** 目標は管の中心線から外へ（管の半径 0.016 + 手のひらの厚みの半分）ずらした点。
+- 手のひらの中心と目標の距離 ≤ 0.02 m（ハンドルの回転角 0°、+90°、−90°）。**（2026-11-26 改訂: 手のひらはリムの管の上、指を曲げて握る）** 目標は管の中心線から、外向きを運転手の側（上）へ倒した向きへ（管の半径 0.016 + 手のひらの厚みの半分）ずらした点。
 - 1 メッシュ 60,000 頂点以下。骨で動く頂点の重みは 4 本まで、合計 1。
 - Kunos・他の MOD のファイルを配布物とリポジトリに入れない。`refs/`（イラスト・Kunos の運転手）は git 管理外。
 - 「Kanachu」は帽子の徽章と胸の刺繍だけ（描き直した字）。名札は無地。表情は目を開けた笑顔。

@@ -49,8 +49,9 @@ def world_at(tracks, i):
 
 
 def dist_to_grip_circle(p):
-    """点 p と握りの円（手のひらの中心の目標の円。管の中心線から外へ 管の半径 + 手のひらの厚みの半分）の距離。"""
-    c, n, r = np.array(COCKPIT["wheel_center"]), np.array(COCKPIT["wheel_axis"]), dp.grip_radius(COCKPIT)
+    """点 p と握りの円（手のひらの中心の目標が乗る円。管の中心線から、外向きを運転手の側へ GRIP_TAU_DEG 倒した向きへ
+    管の半径 + 手のひらの厚みの半分ずらした円 = dp.grip_circle）の距離。2026-11-26 改訂: 手のひらはリムの管の上。"""
+    c, n, r = dp.grip_circle(COCKPIT)
     d = p - c
     off = float(np.dot(d, n))
     return float(np.hypot(np.linalg.norm(d - off * n) - r, off))
