@@ -199,3 +199,28 @@ def test_skinned_material_complete(kn5):
         assert [t[2] for t in m.tex][1:] == shared and m.tex[0][2] in names
     for i in {n.matid for n in kn5io.walk(k.root) if n.cls == 2}:   # 頭の固定メッシュは変えない
         assert [t[0] for t in k.materials[i].tex] == ["txDiffuse"]
+
+
+def variant(tmp, mode):
+    var = tmp / (mode + ".blend")
+    r = blender(str(make(tmp)), "--python", str(ROOT / "tests/fixtures/weight_variant.py"), "--", str(var), mode)
+    assert var.exists(), r.stdout + r.stderr
+    return var
+
+
+def test_posed_armature_exports_same_as_rest(kn5, tmp_path):
+    """頭と腕にポーズを付けた .blend でも、レスト位置の書き出しとバイト一致する（頭のメッシュも骨も）。"""
+    r, out = export(variant(tmp_path, "pose"), tmp_path)
+    assert out.exists(), r.stdout + r.stderr
+    assert out.read_bytes() == kn5[1].read_bytes()
+
+
+def test_mirror_modifier_applied(kn5, tmp_path):
+    r, out = export(variant(tmp_path, "mirror"), tmp_path)
+    assert out.exists(), r.stdout + r.stderr
+    k = kn5io.read(out)
+    n, base = skinned(k)["DRIVER:GLOVES"], skinned(kn5[0])["DRIVER:GLOVES"]
+    v = np.frombuffer(n.vertices, "<f4").reshape(-1, 19)
+    assert len(v) == 2 * (len(base.vertices) // 76)
+    assert np.allclose(v[:, 11:15].sum(1), 1, atol=1e-4) and v[:, 15:19].max() < len(n.bones)
+    assert v[:, 0].min() < -0.3 and v[:, 0].max() > 0.3   # 両側に頂点がある

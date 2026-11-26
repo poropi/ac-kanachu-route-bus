@@ -85,18 +85,29 @@ def matid(ob, shader):
     return mat_index[key]
 
 def tri_mesh(ob):
-    """三角化した一時メッシュ（頂点番号はそのまま）。calc_tangents が n 角形で落ちないように。"""
-    me = ob.data.copy()
+    """モディファイア（Mirror など）を評価し、三角化した一時メッシュにする。calc_tangents が n 角形で落ちないように。
+    Armature モディファイアだけは外す（骨の変形は頂点に焼かない。骨で動くのは AC 側）。重み（deform 層）は残す。"""
+    arms = [m for m in ob.modifiers if m.type == "ARMATURE"]
+    saved = [m.show_viewport for m in arms]
+    for m in arms: m.show_viewport = False
+    try:
+        bpy.context.view_layer.update()
+        dg = bpy.context.evaluated_depsgraph_get()
+        me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    finally:
+        for m, v in zip(arms, saved): m.show_viewport = v
     bm = bmesh.new(); bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
     bm.to_mesh(me); bm.free()
     return me
 
-def mesh_arrays(ob):
-    """kn5 の世界座標で、ループごとの位置・法線・UV・接線と、三角形のループ番号を返す。"""
+def mesh_arrays(ob, bone_names=None):
+    """kn5 の世界座標で、ループごとの位置・法線・UV・接線と、三角形のループ番号、（bone_names があれば）頂点ごとの重みを返す。"""
     if not ob.data.uv_layers: raise SystemExit("no UV on %s" % ob.name)
     me = tri_mesh(ob)
+    W = None
     try:
+        if bone_names is not None: W = weights_of(ob, me, bone_names)
         me.calc_tangents(); me.calc_loop_triangles()
         nl = len(me.loops); nv = len(me.vertices)
         P = np.empty(nv * 3, "f4"); me.vertices.foreach_get("co", P); P = P.reshape(-1, 3).astype("f8")
@@ -113,13 +124,13 @@ def mesh_arrays(ob):
     Nw = N @ np.linalg.inv(L).T; Nw /= np.maximum(np.linalg.norm(Nw, axis=1, keepdims=True), 1e-12)
     Tw = T @ L.T
     if np.linalg.det(L) < 0: tri = tri.reshape(-1, 3)[:, ::-1].ravel()
-    return Pw, Nw, UV, Tw, LV, tri
+    return Pw, Nw, UV, Tw, LV, tri, W
 
-def weights_of(ob, bone_names):
+def weights_of(ob, me, bone_names):
     """頂点ごとに [(骨名, 重み)]（上位 4 本、合計 1 に正規化）。重みの無い頂点は SystemExit。"""
     gname = {g.index: g.name for g in ob.vertex_groups}
     out, bad = [], 0
-    for v in ob.data.vertices:
+    for v in me.vertices:
         ws = sorted(((g.weight, gname[g.group]) for g in v.groups
                      if g.weight > 0 and gname[g.group] in bone_names), key=lambda x: (-x[0], x[1]))[:MAX_INFLUENCE]
         s = sum(w for w, _ in ws)
@@ -142,7 +153,7 @@ def common(Pk, Nk, UV, Tk):
 
 def static_node(ob, name, bone_world_inv):
     """頭の骨に付く固定メッシュ（種類 2）。頂点は骨のローカル座標（kn5 空間）。"""
-    Pw, Nw, UV, Tw, LV, tri = mesh_arrays(ob)
+    Pw, Nw, UV, Tw, LV, tri, _ = mesh_arrays(ob)
     Pk, Nk, Tk = to_kn5(Pw), to_kn5(Nw), to_kn5(Tw)
     Bi = bone_world_inv; Lb = Bi[:3, :3]                       # 世界 -> 骨ローカル（kn5、回転のみ）
     Pk = Pk @ Lb.T + Bi[:3, 3]; Nk = Nk @ Lb.T; Tk = Tk @ Lb.T
@@ -156,8 +167,7 @@ def static_node(ob, name, bone_world_inv):
 
 def skinned_node(ob, name, bone_inv):
     """骨で動くメッシュ（種類 3）。頂点は kn5 の世界座標（バインド姿勢）。bone_inv: 骨名 -> 逆バインド行列（kn5 の並び）。"""
-    Pw, Nw, UV, Tw, LV, tri = mesh_arrays(ob)
-    W = weights_of(ob, set(bone_inv))
+    Pw, Nw, UV, Tw, LV, tri, W = mesh_arrays(ob, set(bone_inv))
     used = [b for b, _ in BONES if any(b == bn for ws in W for bn, _ in ws)]
     index = {b: i for i, b in enumerate(used)}
     nv = len(W); WT = np.zeros((nv, 4), "f4"); WI = -np.ones((nv, 4), "f4")
@@ -173,9 +183,10 @@ def skinned_node(ob, name, bone_inv):
 def main():
     OUT = opt("--out")
     if not OUT: raise SystemExit("--out is required")
-    bpy.context.view_layer.update()
     arm = bpy.data.objects.get(ARMATURE)
     if arm is None or arm.type != "ARMATURE": raise SystemExit("armature %s not found" % ARMATURE)
+    arm.data.pose_position = "REST"   # ポーズが付いた .blend でも同じ kn5 になるように、骨をレスト位置にして評価する（保存はしない）
+    bpy.context.view_layer.update()
     want = dict(BONES)
     have = {b.name: b for b in arm.data.bones}
     if set(have) != set(want): raise SystemExit("bones differ from driver_skeleton: %s" % sorted(set(have) ^ set(want)))
