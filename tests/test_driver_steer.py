@@ -68,16 +68,61 @@ def test_hands_on_rim_all_frames(steer):
             assert dist_to_rim_circle(dp.palm_center(W, a)) <= 0.02, (i, a)
 
 
-def test_seated_grip_at_zero_and_monotonic(steer):
-    _, seated, tracks, _ = steer
-    W, Ws = world_at(tracks, 50), dp.fk(seated)
+def _rim_angles(tracks, seated):
+    """書いた ksanim から、各手のひらのリム上の角度（座った握り点から、時計回り正、度）と指の向きとの接線のずれ（度）。"""
+    c, ax = np.array(COCKPIT["wheel_center"]), dp.unit(np.array(COCKPIT["wheel_axis"]))
+    Ws = dp.fk(seated)
+
+    def radial(p):
+        d = p - c
+        return dp.unit(d - np.dot(d, ax) * ax)
+
+    ang, tan = {a: [] for a in "LR"}, {a: [] for a in "LR"}
+    r0 = {a: radial(dp.palm_center(Ws, a)) for a in "LR"}
+    for i in range(len(tracks["DRIVER:RIG_Hips"])):
+        W = world_at(tracks, i)
+        for a in "LR":
+            r = radial(dp.palm_center(W, a))
+            ang[a].append(float(np.degrees(np.arctan2(np.dot(ax, np.cross(r0[a], r)), np.dot(r0[a], r)))))
+            _, _, hand, mid = dp.side_bones(a)
+            finger = dp.unit(W[mid][3, :3] - W[hand][3, :3])
+            tang = np.cross(ax, r)
+            tan[a].append(float(np.degrees(np.arccos(np.clip(abs(np.dot(finger, tang)), 0, 1)))))
+    return ang, tan
+
+
+@pytest.fixture(scope="module", params=[180.0, 450.0])
+def written(request, steer, tmp_path_factory):
+    """ksanim をファイルに書いて読み戻したもの。"""
+    rest, seated, _, _ = steer
+    p = tmp_path_factory.mktemp("w") / "steer.ksanim"
+    ksanim.write(ds.build_steer(seated, rest, COCKPIT, request.param), p)
+    return ksanim.read(p), seated, request.param
+
+
+def test_written_grip_monotonic_stops_and_follows_tangent(written):
+    tracks, seated, lock = written
+    ang, tan = _rim_angles(tracks, seated)
+    arcs = ds.grip_arcs(seated, COCKPIT)
     for a in "LR":
-        assert np.linalg.norm(dp.palm_center(W, a) - dp.palm_center(Ws, a)) <= 1e-3
-    ph = ds.grip_angles(seated, COCKPIT)
-    for a in "LR":
-        d = np.diff(ph[a])
-        assert np.all(d <= 1e-9) or np.all(d >= -1e-9), a        # 行ったり来たりしない
-        assert ph[a][50] == pytest.approx(0.0, abs=1e-9)
+        v = np.array(ang[a])
+        assert abs(v[50]) < 0.5, a                                  # 0° は座った握り点
+        d = np.diff(v)
+        assert np.all(d <= 0.05) or np.all(d >= -0.05), a           # 行ったり来たりしない
+        assert max(tan[a]) <= 15.0, (a, max(tan[a]))                 # 指がリムの接線に沿う
+        theta = np.array([ds.FRAME0_SIGN * (lock / 2 - lock * i / 100) for i in range(101)])
+        lo, hi = arcs[a]
+        for beyond in (theta > hi + 0.5, theta < lo - 0.5):         # 届く区間の外のコマ = 止まっているはずのコマ
+            if beyond.any():
+                assert np.ptp(v[beyond]) <= 0.5, (a, np.ptp(v[beyond]))     # 止まっている間はリムの角度が変わらない
+        assert (theta > hi + 0.5).any() or (theta < lo - 0.5).any(), a      # どちらの手も端で止まる
+
+
+def test_quaternion_continuity(written):
+    tracks, _, _ = written
+    for n, fr in tracks.items():
+        for f0, f1 in zip(fr, fr[1:]):
+            assert np.dot(f0.rot, f1.rot) >= 0, n
 
 
 def test_elbow_bend_min(steer):

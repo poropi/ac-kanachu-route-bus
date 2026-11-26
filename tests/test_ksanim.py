@@ -48,3 +48,11 @@ def test_borrowed_file_reads():
     n = "DRIVER:RIG_Hips"
     M = np.array(nodes[n].matrix).reshape(4, 4)
     assert np.allclose(ksanim.to_matrix(t[n][0]), M, atol=1e-5)
+
+
+def test_write_keeps_quaternion_hemisphere(tmp_path):
+    q = (0.0, 0.0, 0.6, 0.8)
+    t = {"A": [Frame(q, (0, 0, 0), (1, 1, 1)), Frame(tuple(-x for x in q), (0, 0, 0), (1, 1, 1))]}
+    ksanim.write(t, tmp_path / "a.ksanim")
+    r = ksanim.read(tmp_path / "a.ksanim")["A"]
+    assert np.dot(r[0].rot, r[1].rot) > 0.99

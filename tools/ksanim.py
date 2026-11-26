@@ -45,8 +45,13 @@ def write(tracks, path):
     for name, frames in tracks.items():
         s = name.encode("utf8")
         out += struct.pack("<i", len(s)) + s + struct.pack("<i", len(frames))
+        prev = None
         for fr in frames:
-            out += struct.pack("<10f", *fr.rot, *fr.pos, *fr.scale)
+            rot = fr.rot
+            if prev is not None and sum(a * b for a, b in zip(rot, prev)) < 0:
+                rot = tuple(-x for x in rot)         # 隣のコマと同じ半球へ（補間で手が回らないように）
+            prev = rot
+            out += struct.pack("<10f", *rot, *fr.pos, *fr.scale)
     with open(path, "wb") as f:
         f.write(out)
 
