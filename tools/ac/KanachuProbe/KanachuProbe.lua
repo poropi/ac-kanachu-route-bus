@@ -36,7 +36,7 @@ if enabled then
 end
 function script.windowMain() ui.text('Kanachu probe') end
 
-local CAMS = {'chase','side','front34','cockpit','cockdown','acchase1','acchase2','f6_3','f6_4','mirrorR','mirrorL'}   -- cockdown: eye position looking 35 deg down, shows the steering wheel and hands
+local CAMS = {'chase','side','front34','cockpit','cockdown','drvfront','drvwindow','drvaisle'}   -- cockdown: eye position looking 35 deg down, shows the steering wheel and hands
 -- AC's own cameras (not grabbed): cockpit, acchase1/2 = F1 chase / chase far (global distance, user: covers the screen), f6_3/4 = the rear F6 cameras in cameras.ini (AC reads at most 6)
 local NATIVE = {cockpit = true, acchase1 = true, acchase2 = true, f6_3 = true, f6_4 = true}
 -- External views use our own grabbed camera (the bus is 10.4 x 2.5 x 3.1 m; AC's chase camera ends up inside it).
@@ -79,12 +79,24 @@ pcall(function()
   end
 end)
 -- centres of the rear-view mirror faces in kn5 car space (build/kanachu_route_bus.kn5: Mirror_Starboard_Main_Surface, Mirror_Port_Long_Surface)
+-- cameras aimed at the driver (kn5 car space: +x = car's left, +y up, +z forward; driver seat ~(-0.64, 1.7, 3.7), bus front at z ~4.95)
+local CARCAM = {
+  drvfront  = {p = {-0.9, 2.3, 7.0},  t = {-0.64, 1.75, 3.75}, fov = 35},   -- 2 m ahead of the bus, through the windshield
+  drvwindow = {p = {-3.2, 2.0, 3.9},  t = {-0.64, 1.75, 3.70}, fov = 35},   -- outside the driver's (right) side window
+  drvaisle  = {p = {0.45, 1.95, 2.3}, t = {-0.60, 1.55, 3.85}, fov = 55},   -- inside, from the aisle behind-left
+}
 local MIRROR_AT = {mirrorR = {-1.327, 2.031, 4.508}, mirrorL = {1.263, 1.997, 5.124}}
 local function eyeWorld(c) return c.position + c.side * EYE[1] + c.up * EYE[2] + c.look * EYE[3] end
 local function externalCam(name, c)
   if not grabbed then return end
   local pos, centre, look
-  if name == 'mirrorR' or name == 'mirrorL' then   -- from the driver's eye, zoomed on the right (driver side) / left rear-view mirror
+  if CARCAM[name] then   -- fixed camera in car space aimed at the driver (original driver, Task 8)
+    local cc = CARCAM[name]
+    pos = c.position + c.side * cc.p[1] + c.up * cc.p[2] + c.look * cc.p[3]
+    local tgt = c.position + c.side * cc.t[1] + c.up * cc.t[2] + c.look * cc.t[3]
+    look = norm({tgt.x - pos.x, tgt.y - pos.y, tgt.z - pos.z})
+    centre = tgt
+  elseif name == 'mirrorR' or name == 'mirrorL' then   -- from the driver's eye, zoomed on the right (driver side) / left rear-view mirror
     local m = MIRROR_AT[name]
     pos = eyeWorld(c)
     local tgt = c.position + c.side * m[1] + c.up * m[2] + c.look * m[3]
@@ -113,13 +125,13 @@ local function externalCam(name, c)
     grabbed.transform = t
   end)
   if not ok then grabbed.transform = mat4x4.look(pos, centre - pos, vec3(0, 1, 0)) end
-  grabbed.fov = (name == 'cockdown') and 70 or ((name == 'mirrorR' or name == 'mirrorL') and 20 or 60)   -- 60 = FOV of F6 cameras 3/4
+  grabbed.fov = (CARCAM[name] and CARCAM[name].fov) or (name == 'cockdown') and 70 or ((name == 'mirrorR' or name == 'mirrorL') and 20 or 60)   -- 60 = FOV of F6 cameras 3/4
   local ok2, tt = pcall(function() local m = grabbed.transform
     return {look=m.look, up=m.up, side=m.side} end)
   return pos, (ok2 and tt or nil), look, up
 end
 local function releaseCamera() if grabbed then pcall(function() grabbed:dispose() end); grabbed = nil end end
-local function startShots(label, cams) if not shotJob then shotJob = {label=label, cams=cams or CAMS, single=(cams ~= nil), i=0, wait=0, pending=false, age=0} end end
+local function startShots(label, cams) if not shotJob then shotJob = {label=label, cams=cams or CAMS, single=(cams ~= nil and #cams == 1), i=0, wait=0, pending=false, age=0} end end
 local function stepShots(dt, c)
   local j = shotJob; if not j then return end
   j.age = j.age + dt
