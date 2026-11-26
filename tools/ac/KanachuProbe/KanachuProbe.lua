@@ -37,6 +37,9 @@ end
 function script.windowMain() ui.text('Kanachu probe') end
 
 local CAMS = {'chase','side','front34','cockpit','drvhands','drvfront','drvwindow','drvaisle'}   -- cockdown: eye position looking 35 deg down, shows the steering wheel and hands
+-- eyedown: the same pose as cockdown, but with the driver's face / hair / cap hidden while it is taken, i.e. what the real cockpit view
+-- (driver3d.ini HIDE_OBJECT) would see looking down. The grabbed camera does not apply HIDE_OBJECT, so the probe hides the nodes itself.
+local DRV_SHOTS = {'drvhands', 'drvwindow', 'drvaisle', 'cockpit', 'eyedown'}   -- circle mode: at steer 0 (still), +90 (steer90), -90 (steerm90)
 -- AC's own cameras (not grabbed): cockpit, acchase1/2 = F1 chase / chase far (global distance, user: covers the screen), f6_3/4 = the rear F6 cameras in cameras.ini (AC reads at most 6)
 local NATIVE = {cockpit = true, acchase1 = true, acchase2 = true, f6_3 = true, f6_4 = true}
 -- External views use our own grabbed camera (the bus is 10.4 x 2.5 x 3.1 m; AC's chase camera ends up inside it).
@@ -108,7 +111,7 @@ local function externalCam(name, c)
     pos = c.position + c.side * cp.p[1] + c.up * cp.p[2] + c.look * cp.p[3]
     look = norm({c.side.x*cp.f[1] + c.up.x*cp.f[2] + c.look.x*cp.f[3], c.side.y*cp.f[1] + c.up.y*cp.f[2] + c.look.y*cp.f[3], c.side.z*cp.f[1] + c.up.z*cp.f[2] + c.look.z*cp.f[3]})
     centre = vec3(pos.x + look[1], pos.y + look[2], pos.z + look[3])
-  elseif name == 'cockdown' then        -- from the driver's eye position, car heading, pitched 35 deg down (shows the steering wheel)
+  elseif name == 'cockdown' or name == 'eyedown' then   -- from the driver's eye position, car heading, pitched 35 deg down (shows the steering wheel)
     pos = eyeWorld(c)
     local cp, sp = math.cos(math.rad(35)), math.sin(math.rad(35))
     look = norm({c.look.x*cp - c.up.x*sp, c.look.y*cp - c.up.y*sp, c.look.z*cp - c.up.z*sp})
@@ -126,23 +129,64 @@ local function externalCam(name, c)
     grabbed.transform = t
   end)
   if not ok then grabbed.transform = mat4x4.look(pos, centre - pos, vec3(0, 1, 0)) end
-  grabbed.fov = (CARCAM[name] and CARCAM[name].fov) or (name == 'cockdown') and 70 or ((name == 'mirrorR' or name == 'mirrorL') and 20 or 60)   -- 60 = FOV of F6 cameras 3/4
+  grabbed.fov = (CARCAM[name] and CARCAM[name].fov) or (name == 'cockdown' or name == 'eyedown') and 70 or ((name == 'mirrorR' or name == 'mirrorL') and 20 or 60)   -- 60 = FOV of F6 cameras 3/4
   local ok2, tt = pcall(function() local m = grabbed.transform
     return {look=m.look, up=m.up, side=m.side} end)
   return pos, (ok2 and tt or nil), look, up
 end
 local function releaseCamera() if grabbed then pcall(function() grabbed:dispose() end); grabbed = nil end end
+-- Hide the same driver nodes as driver3d.ini HIDE_OBJECT for the 'eyedown' shot (CSP scene API: ac.findNodes / ac.findMeshes return an
+-- ac.SceneReference with :size() and :setVisible()). ':' may be read as a filter key by CSP, so '?' (single-character wildcard, which hit
+-- in an earlier CSP Lua probe where '*' did not) is tried as well; the multi-material head meshes are kind-1 nodes with _SUBn meshes.
+-- Every attempt and its count is logged; nothing found or no API -> HIDE_UNAVAILABLE. Visibility is restored right after the shot.
+local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP'}
+local hiddenRefs = nil
+local function hideDriverHead(hide)
+  if hide then
+    if hiddenRefs then return end
+    hiddenRefs = {}
+    local notes, total = {}, 0
+    local function try(label, finder)
+      local ok, ref = pcall(finder)
+      local cnt = 0
+      if ok and ref then pcall(function() cnt = ref:size() end) end
+      if cnt > 0 and pcall(function() ref:setVisible(false) end) then hiddenRefs[#hiddenRefs + 1] = ref; total = total + cnt end
+      notes[#notes + 1] = string.format('%s=%s', label, ok and tostring(cnt) or 'err')
+    end
+    for _, n in ipairs(HIDE_NAMES) do
+      for _, pat in ipairs({'DRIVER:'..n, 'DRIVER?'..n}) do
+        try('nodes('..pat..')', function() return ac.findNodes(pat) end)
+        try('meshes('..pat..')', function() return ac.findMeshes(pat) end)
+        try('meshes('..pat..'_SUB?)', function() return ac.findMeshes(pat..'_SUB?') end)
+      end
+    end
+    if total == 0 then      -- not found in the global search: search under the car's own root
+      for _, n in ipairs(HIDE_NAMES) do
+        local pat = 'DRIVER?'..n
+        try('car.nodes('..pat..')', function() return ac.findNodes('carRoot:0'):findNodes(pat) end)
+        try('car.meshes('..pat..'_SUB?)', function() return ac.findNodes('carRoot:0'):findMeshes(pat..'_SUB?') end)
+      end
+    end
+    record('eyedown hide found='..total..' refs='..#hiddenRefs..(total == 0 and ' HIDE_UNAVAILABLE' or '')..' '..table.concat(notes, ' '))
+  else
+    if not hiddenRefs then return end
+    local n = 0
+    for _, ref in ipairs(hiddenRefs) do if pcall(function() ref:setVisible(true) end) then n = n + 1 end end
+    record(string.format('eyedown restore %d/%d', n, #hiddenRefs)); hiddenRefs = nil
+  end
+end
 local function startShots(label, cams) if not shotJob then shotJob = {label=label, cams=cams or CAMS, single=(cams ~= nil and #cams == 1), i=0, wait=0, pending=false, age=0} end end
 local function stepShots(dt, c)
   local j = shotJob; if not j then return end
   j.age = j.age + dt
-  if j.age > SHOT_TIMEOUT * #j.cams then record('shots aborted '..j.label); releaseCamera(); shotJob = nil; return end
+  if j.age > SHOT_TIMEOUT * #j.cams then record('shots aborted '..j.label); hideDriverHead(false); releaseCamera(); shotJob = nil; return end
   if j.pending then return end
   if not j.cam then
     j.i = j.i + 1
     if j.i > #j.cams then releaseCamera(); shotJob = nil; return end
     j.cam = j.cams[j.i]; j.wait = 0.6; j.phaseWait = 0; j.camPos = nil; j.camTT = nil; j.camLook = nil; j.camUp = nil
     local ok, err = pcall(setCamera, j.cam, c); if not ok then record('camerr '..j.cam..' '..tostring(err)) end
+    if j.cam == 'eyedown' then local okh, errh = pcall(hideDriverHead, true); if not okh then record('eyedown hide err '..tostring(errh)..' HIDE_UNAVAILABLE') end end
   end
   if not NATIVE[j.cam] then local ok, pos, tt, lk, upv = pcall(externalCam, j.cam, c); if ok and pos then j.camPos = pos; j.camTT = tt; j.camLook = lk; j.camUp = upv end end
   j.wait = j.wait - dt
@@ -163,10 +207,12 @@ local function stepShots(dt, c)
     if j.camLook then extra = extra..string.format(' set_look=%.3f,%.3f,%.3f set_up=%.3f,%.3f,%.3f', j.camLook[1], j.camLook[2], j.camLook[3], j.camUp[1], j.camUp[2], j.camUp[3]) end
     if j.camTT then pcall(function() extra = extra..string.format(' got_look=%.3f,%.3f,%.3f got_up=%.3f,%.3f,%.3f', j.camTT.look.x, j.camTT.look.y, j.camTT.look.z, j.camTT.up.x, j.camTT.up.y, j.camTT.up.z) end) end
     record(string.format('saved %s err=%s cam=%.2f,%.2f,%.2f car=%.2f,%.2f,%.2f%s', name, tostring(e), cp.x, cp.y, cp.z, c.position.x, c.position.y, c.position.z, extra))
+    if camName == 'eyedown' then pcall(hideDriverHead, false) end
     if not NATIVE[camName] then releaseCamera() end      -- AC's own camera shots must not be taken through the grabbed camera
     j.pending = false; j.cam = nil end)
   if not ok then
     record('shoterr '..name..' '..tostring(err))
+    if camName == 'eyedown' then pcall(hideDriverHead, false) end
     if not NATIVE[camName] then releaseCamera() end
     j.pending = false; j.cam = nil
   end
@@ -217,10 +263,12 @@ local function accelControl(c)
   shiftLogic(ctl, c, 2300)
 end
 -- circle: phase A = straight full-throttle run to 45 km/h (gives 0-40 km/h time and rpm), phase B = slow down to ~10 km/h, then full lock.
--- phase S (first, standing still with the brake on): steer 0.1 = 90 deg of wheel to the right, hold 2.5 s, shoot 'steer90' (cockdown).
+-- phase Z (first, standing still with the brake on): steer 0, hold 2.5 s, shoot 'still' (DRV_SHOTS). The generic 'still' shots are not
+-- taken in circle mode: they ran into phase S and were logged at steer_deg=90 (run circle_drift_20261126_152034).
+-- phase S (then, still braked): steer 0.1 = 90 deg of wheel to the right, hold 2.5 s, shoot 'steer90' (DRV_SHOTS).
 -- Full lock is 900 deg = 2.5 turns, which looks the same either way round, so the wheel's direction is judged from this shot
 -- (steer > 0 turns right: run 100217 front_steer_deg = -52.4 at steer 900; the wheel must then turn clockwise as the driver sees it).
-local phase = 'S'
+local phase = 'Z'
 local phaseBT
 local sShot = false
 local sT = 0
@@ -229,16 +277,22 @@ local function circleControl(c)
   if not ctl then return end
   ctl.combineAxis = false
   local kmh = c.speedKmh
+  if phase == 'Z' then
+    ctl.steer = 0; ctl.gas = 0; ctl.brake = 1
+    if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('still', DRV_SHOTS)
+    elseif sShot and not shotJob then phase = 'S'; sT = elapsed; sShot = false; record('phase Z done') end
+    return
+  end
   if phase == 'S' then
     ctl.steer = 0.1; ctl.gas = 0; ctl.brake = 1
-    if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('steer90', {'drvhands', 'drvwindow', 'drvaisle', 'cockpit'})
+    if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steer90', DRV_SHOTS)
     elseif sShot and not shotJob then phase = 'S2'; sT = elapsed; sShot = false; record('phase S done') end
     return
   end
   -- S2: the same at 90 deg to the LEFT (steer -0.1), so the driver's hands can be judged at 0 / +90 / -90 (original driver, Task 8)
   if phase == 'S2' then
     ctl.steer = -0.1; ctl.gas = 0; ctl.brake = 1
-    if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steerm90', {'drvhands', 'drvwindow', 'drvaisle', 'cockpit'})
+    if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steerm90', DRV_SHOTS)
     elseif sShot and not shotJob then phase = 'A'; driveStart = elapsed; record('phase S2 done') end
     return
   end
@@ -367,7 +421,8 @@ function script.update(dt)
   if hazards and elapsed - (lastHaz or -9) >= 1 and not c.hazardLights then lastHaz = elapsed
     local ok, err = pcall(function() ac.setTurningLights(ac.TurningLights.Hazards) end); if not ok then record('hazard err '..tostring(err)) end end
   if not started then
-    if elapsed > 3 and not nextShot then nextShot = 'still'; startShots('still') end
+    local circleMode = (mode == 'circle' or mode == 'circleramp')     -- circle mode shoots 'still' itself at steer 0 (phase Z)
+    if elapsed > 3 and not nextShot and not circleMode then nextShot = 'still'; startShots('still') end
     if elapsed > WAIT then
       started = true; driveStart = elapsed; nextShot = 30
       ac.tryToStart(true)
