@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.01.05.00">
+    <object class="Bank" id="{bed98c23-6e2c-5f2c-ab49-2e36f46d5360}">
+        <property name="name">
+            <value>kanachu_route_bus</value>
+        </property>
+        <relationship name="folder">
+            <destination>{39a32fe3-f97b-4316-9cb9-8f1146258ad2}</destination>
+        </relationship>
+        <relationship name="buildSettings">
+            <destination>{40bfebcc-71b8-525c-8089-0042b4baa682}</destination>
+            <destination>{0cf2a762-be95-51a5-a3a4-4033b7403fb7}</destination>
+            <destination>{e8659c86-0379-5565-98c2-4a92d12435f7}</destination>
+        </relationship>
+        <relationship name="buildHash">
+            <destination>{5628fc7d-f388-54a3-91c0-f5fa9e59998f}</destination>
+        </relationship>
+    </object>
+    <object class="DesktopBuildSetting" id="{40bfebcc-71b8-525c-8089-0042b4baa682}">
+        <relationship name="compressionSettings">
+            <destination>{c7b3e778-6193-5993-8e2a-4fd938b719f3}</destination>
+            <destination>{4a714c90-ccfa-5c73-af7f-90dfae3658e2}</destination>
+            <destination>{8fe252ed-3070-5ce5-8d2a-93239cb0ff9b}</destination>
+        </relationship>
+        <relationship name="activeCompressionSetting">
+            <destination>{8fe252ed-3070-5ce5-8d2a-93239cb0ff9b}</destination>
+        </relationship>
+        <relationship name="buildHash">
+            <destination>{447359f4-c575-5cc9-8593-c29f294cc059}</destination>
+        </relationship>
+    </object>
+    <object class="PlayStationBuildSetting" id="{0cf2a762-be95-51a5-a3a4-4033b7403fb7}">
+        <relationship name="compressionSettings">
+            <destination>{ac02c9d2-ebdc-5933-a6b7-705f53570119}</destination>
+            <destination>{e88659dc-0d52-5a7a-850d-c0c720fc808d}</destination>
+            <destination>{5dcf6505-56b5-5754-8bab-c612becdd840}</destination>
+            <destination>{41ff6011-f17c-5490-8150-3561afcf1599}</destination>
+        </relationship>
+        <relationship name="activeCompressionSetting">
+            <destination>{41ff6011-f17c-5490-8150-3561afcf1599}</destination>
+        </relationship>
+        <relationship name="buildHash">
+            <destination>{819aa5df-57fd-5597-9980-0c6514273d26}</destination>
+        </relationship>
+    </object>
+    <object class="XboxOneBuildSetting" id="{e8659c86-0379-5565-98c2-4a92d12435f7}">
+        <relationship name="compressionSettings">
+            <destination>{f5b93ff7-32dd-5192-a24b-b977d5280aa7}</destination>
+            <destination>{b0da1b11-6af2-5285-a7bc-99f07cc56594}</destination>
+            <destination>{351afbcf-90db-587c-9aa4-94789f246425}</destination>
+            <destination>{67ed80fb-863f-5e3d-96c2-eef35ceb49ad}</destination>
+        </relationship>
+        <relationship name="activeCompressionSetting">
+            <destination>{67ed80fb-863f-5e3d-96c2-eef35ceb49ad}</destination>
+        </relationship>
+        <relationship name="buildHash">
+            <destination>{d195d48b-505a-5621-b1fa-67c716b414fe}</destination>
+        </relationship>
+    </object>
+    <object class="BankBuildHash" id="{5628fc7d-f388-54a3-91c0-f5fa9e59998f}" />
+    <object class="LossyCompressionSetting" id="{c7b3e778-6193-5993-8e2a-4fd938b719f3}">
+        <property name="type">
+            <value>Vorbis</value>
+        </property>
+    </object>
+    <object class="PCMCompressionSetting" id="{4a714c90-ccfa-5c73-af7f-90dfae3658e2}">
+        <property name="type">
+            <value>ADPCM</value>
+        </property>
+    </object>
+    <object class="PCMCompressionSetting" id="{8fe252ed-3070-5ce5-8d2a-93239cb0ff9b}">
+        <property name="type">
+            <value>PCM</value>
+        </property>
+    </object>
+    <object class="BankBuildHash" id="{447359f4-c575-5cc9-8593-c29f294cc059}" />
+    <object class="LossyCompressionSetting" id="{ac02c9d2-ebdc-5933-a6b7-705f53570119}">
+        <property name="type">
+            <value>AT9</value>
+        </property>
+    </object>
+    <object class="LossyCompressionSetting" id="{e88659dc-0d52-5a7a-850d-c0c720fc808d}">
+        <property name="type">
+            <value>Vorbis</value>
+        </property>
+    </object>
+    <object class="PCMCompressionSetting" id="{5dcf6505-56b5-5754-8bab-c612becdd840}">
+        <property name="type">
+            <value>ADPCM</value>
+        </property>
+    </object>
+    <object class="PCMCompressionSetting" id="{41ff6011-f17c-5490-8150-3561afcf1599}">
+        <property name="type">
+            <value>PCM</value>
+        </property>
+    </object>
+    <object class="BankBuildHash" id="{819aa5df-57fd-5597-9980-0c6514273d26}" />
+    <object class="LossyCompressionSetting" id="{f5b93ff7-32dd-5192-a24b-b977d5280aa7}">
+        <property name="type">
+            <value>XMA</value>
+        </property>
+    </object>
+    <object class="LossyCompressionSetting" id="{b0da1b11-6af2-5285-a7bc-99f07cc56594}">
+        <property name="type">
+            <value>Vorbis</value>
+        </property>
+    </object>
+    <object class="PCMCompressionSetting" id="{351afbcf-90db-587c-9aa4-94789f246425}">
+        <property name="type">
+            <value>ADPCM</value>
+        </property>
+    </object>
+    <object class="PCMCompressionSetting" id="{67ed80fb-863f-5e3d-96c2-eef35ceb49ad}">
+        <property name="type">
+            <value>PCM</value>
+        </property>
+    </object>
+    <object class="BankBuildHash" id="{d195d48b-505a-5621-b1fa-67c716b414fe}" />
+</objects>

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>神奈中バス MOD 設計書</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1d1f22;--muted:#5d6470;--line:#d9dce1;--card:#fff;--accent:#c8102e;--accent2:#e8790c;--note:#fff6d6;--noteb:#e2b93b;--gap:#fde8e8;--gapb:#d05a5a;--ok:#e6f4ea;--okb:#3b8f55;--th:#f0f1f3;--body:#f3e6b0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181b;--fg:#e6e8eb;--muted:#9aa2ad;--line:#33373d;--card:#1e2125;--accent:#ff5a6e;--accent2:#ff9a3c;--note:#3a3220;--noteb:#c9a23a;--gap:#3b2224;--gapb:#d06a6a;--ok:#1f3326;--okb:#4fae6d;--th:#25292e;--body:#5a5230}}
+:root[data-theme="dark"]{--bg:#16181b;--fg:#e6e8eb;--muted:#9aa2ad;--line:#33373d;--card:#1e2125;--accent:#ff5a6e;--accent2:#ff9a3c;--note:#3a3220;--noteb:#c9a23a;--gap:#3b2224;--gapb:#d06a6a;--ok:#1f3326;--okb:#4fae6d;--th:#25292e;--body:#5a5230}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:24px 16px 80px}
+header h1{font-size:1.6rem;margin:0 0 4px;line-height:1.35}
+header p{margin:0;color:var(--muted);font-size:.9rem}
+header a{color:inherit}
+nav{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 18px;margin:20px 0}
+nav ol{margin:0;padding-left:1.3em;columns:2;column-gap:32px}
+@media (max-width:620px){nav ol{columns:1}}
+nav a{color:var(--fg);text-decoration:none}
+nav a:hover{color:var(--accent)}
+h2{font-size:1.25rem;border-left:4px solid var(--accent);padding-left:10px;margin:40px 0 12px}
+h3{font-size:1.05rem;margin:24px 0 8px}
+.tbl{overflow-x:auto;margin:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--th);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+code{font:.85em ui-monospace,Menlo,monospace;background:var(--th);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.callout{border-left:4px solid var(--noteb);background:var(--note);padding:10px 14px;border-radius:6px;margin:12px 0}
+.callout.gap{border-color:var(--gapb);background:var(--gap)}
+.callout.ok{border-color:var(--okb);background:var(--ok)}
+.tag{display:inline-block;font-size:.75rem;padding:0 7px;border-radius:9px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.a{border-color:var(--noteb);color:var(--fg)}
+.tag.o{border-color:var(--okb);color:var(--fg)}
+.tag.u{border-color:var(--accent);color:var(--fg)}
+.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}
+.dim{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.dim b{display:block;font-size:.8rem;color:var(--muted);font-weight:500}
+.dim span{font-size:1.15rem}
+.dim small{color:var(--muted)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.cols{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.card h4{margin:0 0 6px;font-size:.95rem}
+.card ul{margin:0}
+figure{margin:14px 0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:.82rem;color:var(--muted);margin-top:6px}
+svg text{fill:var(--fg);font:12px -apple-system,"Hiragino Sans",sans-serif}
+svg .dimline{stroke:var(--muted);stroke-width:1.2}
+svg .body{fill:var(--body);stroke:var(--fg);stroke-width:1.5}
+svg .win{fill:var(--th);stroke:var(--muted)}
+svg .stripe1{fill:var(--accent)}
+svg .stripe2{fill:var(--accent2)}
+svg .wheel{fill:#26282b;stroke:var(--muted);stroke-width:1.5}
+svg .ground{stroke:var(--muted);stroke-dasharray:4 3}
+ul{padding-left:1.3em}
+a{color:var(--accent)}
+ol.steps{padding-left:1.4em}
+ol.steps li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>神奈中 路線バス Assetto Corsa MOD 設計書</h1>
+<p>2026-11-25 ・ 正本は <a href="2026-11-25-kanachu-bus-design.md">Markdown 版</a> ・ 諸元の出典は <a href="../../research/erga_specs.md">research/erga_specs.md</a></p>
+</header>
+
+<nav><ol>
+<li><a href="#goal">ゴールと前提</a></li>
+<li><a href="#flow">成果物とマイルストーン</a></li>
+<li><a href="#roles">分担と受け渡しの決まり</a></li>
+<li><a href="#ext">外装</a></li>
+<li><a href="#int">内装</a></li>
+<li><a href="#phys">物理</a></li>
+<li><a href="#etc">音・UI・スキン・CSP</a></li>
+<li><a href="#done">完了の判定</a></li>
+<li><a href="#gaps">実車との差として残るもの</a></li>
+<li><a href="#ideas">追加案（範囲外）</a></li>
+<li><a href="#builder">作る人に任せること</a></li>
+</ol></nav>
+
+<h2 id="goal">1. ゴールと前提</h2>
+<p><strong>神奈中（神奈川中央交通）が使っている一般的な路線バス</strong>（ユーザーの言葉）を Assetto Corsa の車 MOD にします。外観・運転席から見た車内・バスらしい走り・神奈中の塗装をそろえ、ゲームで運転できるようにします。</p>
+<div class="tbl"><table>
+<tr><th>項目</th><th>決定</th><th>決めた人</th></tr>
+<tr><td>作り方</td><td>A 案：Blender で一から作る。内装（運転席・客席）も作る。物理は諸元から組む</td><td><span class="tag u">ユーザー</span></td></tr>
+<tr><td>分担</td><td>デザイン関連は Codex の <code>gpt-6.2-astra</code> に依頼（<a href="#roles">§3</a>）</td><td><span class="tag u">ユーザー</span> 範囲の解釈は私</td></tr>
+<tr><td>基準車種</td><td>いすゞ エルガ（LV290 系、短尺の N尺 10.43 m、ノンステップ、前中扉）。エンブレムは付けない</td><td><span class="tag a">私</span></td></tr>
+<tr><td>塗装</td><td>旧塗装（クリーム地に赤・橙の帯）と新塗装（2023 年〜の縦 3 色）の 2 スキン</td><td><span class="tag a">私</span></td></tr>
+<tr><td>動作確認</td><td>ゲーム PC（ゲーム PC）の AC で、こちらが起動・自動運転・撮影して確かめる</td><td><span class="tag a">私</span></td></tr>
+<tr><td>用途</td><td>個人利用。神奈中の名前・塗装・ブランドマークを使うので配布しない前提</td><td><span class="tag a">私</span></td></tr>
+</table></div>
+<div class="callout">基準車種をエルガにした理由：神奈中は 2015 年頃から新車をノンステップ短尺に統一し、近年の新車はエルガが中心です（二次資料）。ただし 2005 年時点では 9 割以上が三菱車で、いま全体で最も多い車種かは統計が無く断定できません。</div>
+
+<div class="cols">
+<div class="card"><h4>目標</h4><ul>
+<li>神奈中のバスに見える外観（2 塗装）</li>
+<li>運転席視点で運転できる</li>
+<li>10 t 級の重さとディーゼルの回転域で走る</li>
+<li>ゲームのログにエラーが無い</li>
+</ul></div>
+<div class="card"><h4>目標外</h4><ul>
+<li>Q尺・EV・ハイブリッド・旧型車（エアロスター等）</li>
+<li>トルコン AT の厳密な再現</li>
+<li>乗客・運賃などのゲーム要素</li>
+<li>配布</li>
+</ul></div>
+</div>
+<div class="callout gap"><strong>失敗とみなす：</strong>スポーツカーのように加速する・8,000 rpm まで回る（既存のバス MOD <code>tky_bus_jetset</code> はこれ）／ゲームで読めない・止まっていると揺れ続ける／車内視点が無い／写真やロゴ画像をそのまま貼ったテクスチャ。</div>
+
+<h2 id="flow">2. 成果物とマイルストーン</h2>
+<p>成果物は <code>build/kanachu_route_bus/</code>。Windows の <code>assettocorsa/content/cars/</code> にそのまま置けるフォルダで、zip にもします。完成品はこの Mac の中で組み上げ、ゲーム PC には試すための写しだけを送ります。</p>
+<div class="tbl"><table>
+<tr><th>#</th><th>内容</th><th>担当</th><th>合格条件</th></tr>
+<tr><td>M1</td><td><strong>箱のバス</strong>：寸法どおりの箱と 4 輪（後輪ダブル）の kn5＋物理一式を ゲーム PC の AC で走らせる</td><td>Claude 側</td><td><a href="#done">§8</a> ゲーム確認の 1〜5。テンプレート無しの kn5・ノード名・車輪の向き・10 t の物理を先に確かめる</td></tr>
+<tr><td>M2</td><td>外装</td><td>astra → Claude 側</td><td>寸法 ±20 mm、写真との比較で形の違いを全部直す、車外視点で破綻なし。<strong>ユーザーに見せて止まる</strong></td></tr>
+<tr><td>M3</td><td>内装・運転席視点</td><td>astra → Claude 側</td><td>運転席視点で前方と計器が見え、ハンドルと針が動く</td></tr>
+<tr><td>M4</td><td>塗装 2 種・UI・灯火（CSP）</td><td>astra → Claude 側</td><td>スキン切り替えで塗装が変わる、灯火が点く。<strong>ユーザーに見せて止まる</strong></td></tr>
+<tr><td>M5</td><td>最終照合</td><td>Claude 側</td><td>§8 を全部満たし、残る差を §9 に書き切る</td></tr>
+</table></div>
+<p>M1 の箱は試験用の仮の形で、デザインではないので Claude 側で作ります。</p>
+
+<h2 id="roles">3. 分担と受け渡しの決まり</h2>
+<div class="cols">
+<div class="card"><h4>Codex <code>gpt-6.2-astra</code>（デザイン）</h4><ul>
+<li>D1 外装の .blend（車体・窓・扉・灯火・ミラー・ワイパー・行先表示器・バンパー・ホイールとタイヤ）</li>
+<li>D2 内装の .blend（運転席・ハンドル・計器盤と針・料金箱・客席・手すり・つり革・降車ボタン・床・天井）</li>
+<li>D3 塗装テクスチャ 2 種、ナンバー・社番・行先表示の絵</li>
+<li>D4 UI の絵（badge.png・logo.png・livery.png）</li>
+</ul></div>
+<div class="card"><h4>Claude 側（Claude＋Sonnet）</h4><ul>
+<li>kn5 書き出し、LOD・当たり判定</li>
+<li>物理 ini、CSP 設定、UI の json、組み立て</li>
+<li>規約の自動検査、写真との並べ比較</li>
+<li>ゲーム PC での試走・撮影</li>
+</ul></div>
+</div>
+<ul>
+<li>呼び方：<code>codex exec -m gpt-6.2-astra --dangerously-bypass-approvals-and-sandbox - &lt; 依頼文.md</code>（Blender はサンドボックス内で動かないため）。依頼文は <code>design/requests/NN_*.md</code>、受け取った物は <code>design/</code>。2026-11-25 に応答を確認済み。</li>
+<li><span class="tag a">私の提案</span> 届いたら Claude 側が規約の自動検査と写真との並べ比較をし、違いを一覧にして直しを頼む。</li>
+<li><span class="tag a">私の提案</span> 直しは 1 部位 3 回まで。残れば effort を xhigh に上げてもう一度。それでも残ればユーザーに相談する。<strong>Claude 側が代わりにモデルや絵を作ることはしない。</strong></li>
+<li><span class="tag a">私の提案</span> ユーザーに見せて止まるのは M2 と M4 の終わり。M1・M3・M5 は条件を満たせば止まらずに進む。</li>
+</ul>
+
+<h3>受け渡しの決まり（astra への依頼文にそのまま入れる）</h3>
+<div class="tbl"><table>
+<tr><th>項目</th><th>決まり</th></tr>
+<tr><td>座標</td><td>Blender は Z 上・+Y が前・+X が右（kn5 への変換は書き出しで行う）。単位 m。<strong>原点は前後車軸の中点の真下の地面、車幅の中心</strong></td></tr>
+<tr><td>ハンドル</td><td>右ハンドル。運転席は右前</td></tr>
+<tr><td>ノード名</td><td><code>WHEEL_LF/RF/LR/RR</code>（車輪の中心が原点、回転軸 X。後輪は 2 本を 1 つにまとめ、2 本の中央を後トレッドの位置に）、<code>SUSP_LF/RF/LR/RR</code>、<code>STEER_HR</code>、<code>COCKPIT_HR</code>、<code>ARROW_SPEED</code>・<code>ARROW_RPM</code>、<code>LIGHT_HEAD_L/R</code>・<code>LIGHT_TAIL_L/R</code>・<code>LIGHT_BRAKE_L/R</code>・<code>LIGHT_IND_FL/FR/RL/RR</code>・<code>LIGHT_REVERSE_L/R</code>、<code>DEST_FRONT/SIDE/REAR</code>、<code>DOOR_FRONT</code>・<code>DOOR_MID</code>（閉じた状態）。ほかの名前は <code>WHEEL_</code>・<code>SUSP_</code>・<code>STEER_</code>・<code>ARROW_</code> で始めない</td></tr>
+<tr><td>マテリアル名</td><td><code>paint</code>（塗装面すべて）、<code>trim_black</code>、<code>chrome</code>、<code>glass</code>、<code>glass_light</code>、<code>light_emit</code>、<code>dest_led</code>、<code>tyre</code>、<code>rim</code>、<code>rubber</code>、<code>interior_*</code></td></tr>
+<tr><td>塗装の UV</td><td><code>paint</code> は 1 枚の UV（0〜1）に重ねずに収める。左右側面・前・後・屋根を別の島にし、4096×2048 の上で帯が途切れず描ける並び。UV 配置図（PNG）も渡す。D3 はこの上に描く</td></tr>
+<tr><td>三角形数</td><td>外装＋内装で 30 万以下（LOD は Claude 側）</td></tr>
+<tr><td>ガラス</td><td>内外の両方から見えること（裏向きで消えない）</td></tr>
+<tr><td>参照写真</td><td>参照だけ。ロゴ・文字・塗装は描き直し、切り貼りしない</td></tr>
+<tr><td>届ける物</td><td>.blend（テクスチャはパック）、UV 配置図、4 方向のレンダー、参照写真の URL 一覧、写真から決めた寸法</td></tr>
+</table></div>
+
+<h2 id="ext">4. 外装</h2>
+<figure>
+<svg viewBox="0 0 720 230" role="img" aria-label="エルガ N尺の側面の寸法図">
+<line class="ground" x1="20" y1="190" x2="700" y2="190"/>
+<rect class="body" x="60" y="58" width="600" height="122" rx="10"/>
+<rect class="stripe1" x="60" y="150" width="600" height="12"/>
+<rect class="stripe2" x="60" y="140" width="600" height="6"/>
+<rect class="win" x="72" y="72" width="38" height="62"/>
+<rect class="win" x="168" y="72" width="70" height="56"/><rect class="win" x="244" y="72" width="70" height="56"/>
+<rect class="win" x="380" y="72" width="70" height="56"/><rect class="win" x="456" y="72" width="70" height="56"/><rect class="win" x="532" y="72" width="70" height="56"/>
+<rect x="320" y="62" width="50" height="116" fill="none" stroke="var(--fg)" stroke-width="1.2"/>
+<rect class="win" x="620" y="78" width="26" height="22"/>
+<circle class="wheel" cx="150" cy="166" r="24"/>
+<circle class="wheel" cx="555" cy="166" r="24"/>
+<line class="dimline" x1="60" y1="210" x2="660" y2="210"/><text x="320" y="225">全長 10,430</text>
+<line class="dimline" x1="150" y1="40" x2="555" y2="40"/><line class="dimline" x1="150" y1="34" x2="150" y2="46"/><line class="dimline" x1="555" y1="34" x2="555" y2="46"/><text x="300" y="34">ホイールベース 5,300</text>
+<line class="dimline" x1="680" y1="58" x2="680" y2="190"/><text x="712" y="52" text-anchor="end">全高 3,105</text>
+<text x="74" y="52">← 前</text>
+</svg>
+<figcaption>寸法の模式図（左側面＝扉の側、mm）。窓・扉・オーバーハングの位置は公式資料に無く、実車写真からホイールベースを物差しにして決める（astra の作業）。図の塗装と窓の位置は目安。</figcaption>
+</figure>
+<div class="dims">
+<div class="dim"><b>全長</b><span>10,430 mm</span> <small>公式（N5 の表）</small></div>
+<div class="dim"><b>全幅（ミラー除く）</b><span>2,485 mm</span> <small>公式</small></div>
+<div class="dim"><b>全高</b><span>3,105 mm</span> <small>公式（N5）</small></div>
+<div class="dim"><b>ホイールベース</b><span>5,300 mm</span> <small>公式</small></div>
+<div class="dim"><b>トレッド 前／後</b><span>2,065 / 1,820 mm</span> <small>公式</small></div>
+<div class="dim"><b>最低地上高</b><span>130 mm</span> <small>公式</small></div>
+<div class="dim"><b>タイヤ</b><span>275/70R22.5</span> <small>外径 956 mm（計算）、後輪ダブル</small></div>
+<div class="dim"><b>アプローチ／デパーチャ</b><span>9.6° / 8.4°</span> <small>公式</small></div>
+</div>
+<p><strong>形の要点：</strong>前面の大きな 1 枚ガラスと上部の行先表示器、前扉（折戸）と中扉（引戸）、左側面の扉と右側面の窓の並び、屋根の冷房装置、後面の機関部の点検ふたと後部の行先表示、前に張り出すミラー。</p>
+<ol class="steps">
+<li>実車写真と同じ向き（前・横・後・斜め前・斜め後）でレンダーを撮り、並べ比較の画像を作る。</li>
+<li>寸法はメッシュから測り、表の値 ±20 mm。</li>
+<li>違いは全部直してから次へ。比較画像は全部直し終えてから 1 回だけユーザーに見せる。</li>
+</ol>
+
+<h2 id="int">5. 内装</h2>
+<ul>
+<li><strong>運転席：</strong>座席、大径で寝かせ気味のハンドル、速度計・回転計（針が動く）、料金箱、仕切り。目の位置は写真から決める（推定 地上約 2.0 m）。</li>
+<li><strong>客室：</strong>79 人仕様の座席 27 席、手すり、つり革、降車ボタン、床（ノンステップ部と後部の段差）、天井、窓の内側。</li>
+<li><strong>ドライバーの人形：</strong>M1 は人形なしで読み込めるかを確かめる。M3 で標準の人形を右ハンドル・高い座席に合わせてみて、手が合わなければ人形なしで出す。<strong>人形は合格条件に入れない。</strong></li>
+</ul>
+
+<h2 id="phys">6. 物理（data/ フォルダ）</h2>
+<p>ZC32S のツールは HT81S の ini を書き換える作りなので、物理 ini は一式を新しく書きます。data.acd に固めるかは M1 で決めます（既存のバス MOD は data/ のまま読まれている）。</p>
+<div class="tbl"><table>
+<tr><th>項目</th><th>値</th><th>根拠</th></tr>
+<tr><td>TOTALMASS</td><td>9,865 kg（車両重量 9,790＋ドライバー 75）</td><td><span class="tag o">公式</span>＋<span class="tag a">仮定</span> 燃料は車両重量に含む前提</td></tr>
+<tr><td>重心</td><td>前 40%、高さは M1 で決める</td><td><span class="tag a">仮定</span></td></tr>
+<tr><td>エンジン</td><td>773 N·m @1,600、169 kW @2,150 を通る曲線。アイドル 600、リミッター 2,600 rpm</td><td><span class="tag o">公式</span> 2 点 ／ <span class="tag a">仮定</span> ほか</td></tr>
+<tr><td>変速機</td><td>3.486 / 1.864 / 1.409 / 1.000 / 0.749 / 0.652、後退 5.027、最終 6.500。自動変速で使う前提</td><td><span class="tag o">公式</span>（比）。トルコンは再現しない</td></tr>
+<tr><td>タイヤ</td><td>RADIUS 0.478、RIM_RADIUS 0.298、WIDTH 前 0.275／後 0.60（ダブルを 1 本で表す）</td><td>公式サイズから計算 ／ <span class="tag a">仮定</span> 後輪幅</td></tr>
+<tr><td>サスペンション</td><td>WHEELBASE 5.300、TRACK 2.065／1.820、前後とも車軸式</td><td><span class="tag o">公式</span>。前に AXLE が使えるかは M1 で確かめ、だめなら DWB で近似</td></tr>
+<tr><td>ばね・減衰</td><td>空車の軸重と固有振動数 約 1.2 Hz から計算</td><td><span class="tag a">仮定</span></td></tr>
+<tr><td>ハンドル</td><td>最小回転半径 8.3 m になる切れ角、左右 2.5 回転</td><td><span class="tag o">公式</span>＋<span class="tag a">仮定</span></td></tr>
+<tr><td>ブレーキ・空力</td><td>10 t を止めるトルク、ABS あり。CD 0.6、前面面積は寸法から</td><td><span class="tag a">仮定</span></td></tr>
+<tr><td>最高速度</td><td>2,600 rpm・6 速で約 110 km/h</td><td>計算</td></tr>
+</table></div>
+
+<h2 id="etc">7. 音・UI・スキン・CSP</h2>
+<div class="callout note"><strong>音（2026-11-26 改訂、ユーザー指示）：</strong>Pixabay の効果音（トラック・バスのエンジン）から回転数ごとのループを作り、AC の音の SDK のひな形と FMOD Studio 1.08.12 で自作の <code>.bank</code> にした。M1 の試走だけはバス MOD <code>tky_bus_jetset</code> の音を借りた。Pixabay のライセンスは作品への組み込みを認め、元のままの単体配布を禁じる。</div>
+<ul>
+<li><strong>UI：</strong>「Kanachu City Bus (Large Non-step)」、ブランド Kanachu、169 kW・773 N·m・9,790 kg、説明文は日英。曲線は power.lut から計算。</li>
+<li><strong>スキン（2026-11-26 改訂）：</strong><code>skins/0_new2023/</code>（新塗装、既定）と <code>skins/1_standard/</code>（旧塗装）。名前順の先頭が既定になるので現行の新塗装を先にした（私の判断）。塗装テクスチャを同名で差し替える。preview.jpg は Blender のレンダー。</li>
+<li><strong>CSP：</strong>ライト・ブレーキ灯・ウインカー・バック灯・行先表示の発光。車内灯は点け消しせず、マテリアル（interior_lamp）が常に光る（2026-11-26 改訂）。</li>
+</ul>
+
+<h2 id="done">8. 完了の判定</h2>
+<h3>この Mac で確かめる</h3>
+<ul>
+<li>寸法が §4 の目標 ±20 mm（メッシュから実測）。</li>
+<li>書き出した kn5 を読み戻し、ノード名・マテリアル名・三角形数が意図どおり。</li>
+<li>写真との並べ比較（5 方向）で、形と塗装の違いを全部直した。</li>
+</ul>
+<h3>ゲームで確かめる（ゲーム PC。こちらで実行する）</h3>
+<p>手順は <code>hakone_mod_ac/tools/ac/</code> と同じ。AC が使用中でないことを確かめてから始め、<code>race.ini</code>・<code>video.ini</code> を控えて終了後に戻し、入れた Lua アプリは消します。</p>
+<div class="tbl"><table>
+<tr><th>コース</th><th>使い道</th></tr>
+<tr><td><code>yabitsu</code> / <code>s1_up</code></td><td>秦野の町なかの区間（実際の神奈中の路線の道）。自動運転の走行と撮影</td></tr>
+<tr><td><code>drift</code></td><td>Kunos の広い平地。旋回半径と横 G</td></tr>
+<tr><td><code>ks_drag</code> / <code>drag400</code></td><td>直線。加速と最高速</td></tr>
+</table></div>
+<ol class="steps">
+<li>車が読み込まれ、AC と CSP のログにこの車のエラーが無い。</li>
+<li>止まった状態で 2 秒以内に揺れが収まる。</li>
+<li><code>s1_up</code> を自動運転で 3 分、ひっくり返る・跳ねる・沈み込むことが無い。</li>
+<li><code>drag400</code>：2,600 rpm を超えない。0→40 km/h が 8〜16 秒<span class="tag a">仮定の幅</span>。最高速 115 km/h 以下。</li>
+<li><code>drift</code>：最小旋回半径 8.3 m ±0.5 m。半径 20 m の定常円で限界の横 G が 0.7 G 以下<span class="tag a">仮定</span>（後輪 1 本化でグリップが出すぎていないか）。</li>
+<li>車外（追従・横）と運転席の視点の撮影で、穴・ちらつき・消える面が無い。</li>
+<li>スキン 2 種とライト・ウインカーが切り替わる（M4 以降）。</li>
+</ol>
+<p>4・5 の幅を外れたら、ばね・タイヤ・エンジン曲線を直して測り直します。1 項目 3 回までで、外れたままなら測った値を添えてユーザーに報告します。</p>
+
+<h2 id="gaps">9. 実車との差として残るもの（2026-11-26 最終確認で更新）</h2>
+<div class="tbl"><table>
+<tr><th>項目</th><th>内容</th></tr>
+<tr><td>音</td><td>Pixabay の効果音（トラック・バスのエンジン）から作った自作の bank。ゲームで読み込めることは確かめたが、<strong>耳での確認はしていない</strong>（ユーザーに聴いてもらう）。4HK1 の実音ではない</td></tr>
+<tr><td>変速</td><td>トルコン AT は再現しない。AC の自動変速での近似。AI の自動運転では 2 速の変速のときに 1〜2 サンプルだけ 2,634〜2,655 rpm まで吹ける（drag400 の手動加速では 2,554 rpm）</td></tr>
+<tr><td>公式資料が無い寸法</td><td>前後オーバーハング（2.30／2.83 m）は公式の旋回軌跡図から。扉・窓・床の高さは写真からの推定</td></tr>
+<tr><td>物理の多くの値</td><td>ばね・減衰・重心（高さ 1.1 m）・ブレーキ・空気抵抗・リミッター・駆動損失（0.80）は仮定。0→40 km/h 8.39 s と最高速 101 km/h はこの仮定での計算値で、実測の資料と比べていない</td></tr>
+<tr><td>横方向のグリップ</td><td>半径 20 m の定常円の限界は、安全に回れる広さの場所が見つからず測れていない（§8-5 後半）。タイヤの値（DY_REF 0.85）からは 0.75〜0.85 G と見込まれたので、ユーザー判断で横の摩擦を 0.72 に下げた。代わりに drift でハンドルいっぱいの円（重心の半径約 6 m）の速度を上げると、0.30 G の時点で半径が広がって打ち切った（直前に縁石か段差を踏んだ形跡があり、原因は切り分けられていない）。前輪 52° の切れ角での値で、20 m の円の限界ではない</td></tr>
+<tr><td>出力の世代差</td><td>N5 の表（169 kW/230 PS）を使う。N3 世代は 177 kW/240 PS の表記がある</td></tr>
+<tr><td>後輪</td><td>見た目はダブル、物理は幅の広いタイヤ 1 本</td></tr>
+<tr><td>運転手の人形</td><td>別の MOD（tky_bus_jetset）の人形を借りている。レーシングスーツと手袋の姿で、右手がハンドルの右に浮く。ハンドルの動きの設定（LOCK 450°）がこの車（900°）と合っていない。人形の 3 ファイルが無いと CSP が落ちるので、外すことはできない</td></tr>
+<tr><td>尾灯のレンズ</td><td>消えているときに白っぽく見える（実車は赤いレンズ）。点いたときの赤・橙は正しい</td></tr>
+<tr><td>行先表示</td><td>実際の系統（「藤沢駅」など）ではなく「神奈川中央交通」（ユーザー指示）</td></tr>
+<tr><td>付けていない物</td><td>メーカーのエンブレム、社番（「ふ43」など）、ナンバーの実番号、IC カード・車いす・注意書きのステッカー</td></tr>
+<tr><td>追従カメラ</td><td>AC の F1 の追従カメラは全車共通の距離（<code>system/cfg/chase_cam.ini</code>）で、全長 10.4 m のバスでは後面のすぐ後ろに来て、画面が「Kanachu」の文字で埋まる（ゲームで確認）。代わりに F6 の車載カメラの 3・4 番を、後ろ上方から見る 2 台（後端から 8 m・13 m）に入れ替えた（AC は F6 を 6 台までしか読まない）。この 2 台はバスの MOD の中にあるので配布だけで効き、ゲームで車体全体と前方の道が見えることを確認した（<code>circle_drift_20261126_121943</code>）</td></tr>
+<tr><td>ログ</td><td>ドライバーを読み込むとき AC のログに <code>ERROR: Variable type cannot be found</code> が 4 行出る。走りへの影響は見えないが原因は分かっていない</td></tr>
+<tr><td>テクスチャ</td><td>塗装のテクスチャが無圧縮（44.7 MB）で、車全体のテクスチャが重い</td></tr>
+</table></div>
+
+<h2 id="ideas">10. 私からの追加案（初版の範囲外。入れるかはユーザーが決める）</h2>
+<ul>
+<li>扉の開閉（キー操作で前扉・中扉が開く）</li>
+<li>行先表示に「秦21 ヤビツ峠」などヤビツ線の表示</li>
+<li>夜の車内灯と降車ボタンの点灯</li>
+<li>乗客を乗せたときの重さ（セットアップのバラストで 0〜4 t）</li>
+</ul>
+
+<h2 id="builder">11. 作る人に任せること</h2>
+<ul>
+<li>作業の細かい順番とツールの分け方。ZC32S の <code>kn5io.py</code>・<code>acd.py</code>・描画系は流用、<code>blend_to_kn5.py</code>・<code>physics.py</code>・<code>assemble.py</code>・<code>validate.py</code>・<code>ui.py</code>・<code>skins.py</code> はテンプレート前提なので書き直し。</li>
+<li>シェーダの属性の並び（HT81S の kn5 の同じシェーダに合わせる）。</li>
+<li>LOD の三角形数（目安 B 8 万・C 2.5 万・D 6 千）と当たり判定の形。</li>
+<li>音を借りる車の選定。</li>
+</ul>
+</div>
+</body>
+</html>

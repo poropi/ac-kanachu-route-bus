@@ -1,0 +1,338 @@
+{
+  "passed": true,
+  "blender": "5.2.2 LTS",
+  "sha256": {
+    "kanachu_interior.blend": "ab876a1fbae9f1dcd62b9c3a6dd1f0bb03e9be263e020629326921f20943fa52",
+    "kanachu_exterior.blend": "eabcb1b873e160ae61455f24cd5a39ae7513c2343647ad4cc3f8e911712465f6"
+  },
+  "boundary": "外装全メッシュ（INTERIOR_PLACEHOLDERを除く）。閉扉・直進姿勢。評価済み世界座標の三角形BVH overlap、epsilon=0。同一平面は別途2D投影の面積重複を判定（面間距離0.001 mm以内）。閉じたメッシュ間の包含は両向きの頂点と3方向レイ多数決。別途、全内装頂点を外殻の凸包および外板・ガラス・扉・屋根・床下板の実在面と4方向で比較。点の内外判定の許容差0.01 mm。開口で境界を拾えないレイは方向別に記録。",
+  "asset": {
+    "errors": [],
+    "objects": 53,
+    "meshes": 48,
+    "triangles": 121334,
+    "max_vertices": 11564,
+    "largest_mesh": "Saloon_Stanchions",
+    "zero_uv_triangles": {},
+    "zero_3d_triangles": {},
+    "seat_count": 27,
+    "pivots": {
+      "STEER_HR": {
+        "origin": [
+          0.6420000195503235,
+          4.0980000495910645,
+          1.3919999599456787
+        ],
+        "local_z_world": [
+          0.0,
+          0.4067365825176239,
+          -0.9135454893112183
+        ],
+        "radius_m": 0.24800017973342933,
+        "rim_axis_error_deg": 0.0,
+        "rim_box_center_offset_m": 1.4901161193847656e-08
+      },
+      "ARROW_SPEED": {
+        "origin": [
+          0.7720000147819519,
+          4.412788391113281,
+          1.5226242542266846
+        ],
+        "local_z_world": [
+          0.0,
+          -0.8480481505393982,
+          0.5299191474914551
+        ],
+        "radius_m": 0.05800426683885073,
+        "local_tip_angle_deg_ccw_from_x": -166.99996601655812,
+        "local_z_extent_m": 0.005000251371392039,
+        "best_fit_axis_delta_deg": 2.3007544074990185,
+        "dial_center_world": [
+          0.7720000147819519,
+          4.41448450088501,
+          1.5215644836425781
+        ],
+        "dial_center_offset_m": 2.864466685289363e-08,
+        "pointer_clearance_to_face_m": 0.0019999755118175217,
+        "axis_to_dial_normal_deg": 0.010219088878120924,
+        "pointer_angle_deg_clockwise_from_12": -102.99974542863208,
+        "dial_view_from_eye": [
+          {
+            "angle": 0,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 45,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 90,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 135,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 180,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 225,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 270,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          },
+          {
+            "angle": 315,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_speed"
+          }
+        ]
+      },
+      "ARROW_RPM": {
+        "origin": [
+          0.5120000243186951,
+          4.412788391113281,
+          1.5226242542266846
+        ],
+        "local_z_world": [
+          0.0,
+          -0.8480481505393982,
+          0.5299191474914551
+        ],
+        "radius_m": 0.05800426683885073,
+        "local_tip_angle_deg_ccw_from_x": -166.9999693278981,
+        "local_z_extent_m": 0.005000251371392039,
+        "best_fit_axis_delta_deg": 2.300754101416508,
+        "dial_center_world": [
+          0.5120000243186951,
+          4.41448450088501,
+          1.5215644836425781
+        ],
+        "dial_center_offset_m": 2.864466685289363e-08,
+        "pointer_clearance_to_face_m": 0.0019999755118175217,
+        "axis_to_dial_normal_deg": 0.010219088878120924,
+        "pointer_angle_deg_clockwise_from_12": -102.9997421172882,
+        "dial_view_from_eye": [
+          {
+            "angle": 0,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 45,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 90,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 135,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 180,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 225,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 270,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          },
+          {
+            "angle": 315,
+            "face_visible": true,
+            "first_surface": "Instrument_Fascia_and_Instruments",
+            "first_material": "interior_rpm"
+          }
+        ]
+      },
+      "DRIVER_EYE": {
+        "origin": [
+          0.6420000195503235,
+          3.4070000648498535,
+          1.9850000143051147
+        ],
+        "local_z_world": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      }
+    },
+    "materials": [
+      "interior_amber",
+      "interior_back",
+      "interior_bezel",
+      "interior_boarding",
+      "interior_buttoncream",
+      "interior_cluster",
+      "interior_dash",
+      "interior_driver_cloth",
+      "interior_edge",
+      "interior_exit_sign",
+      "interior_fare",
+      "interior_fare_slot",
+      "interior_floor",
+      "interior_foot",
+      "interior_grip",
+      "interior_guardglass",
+      "interior_headliner",
+      "interior_ic",
+      "interior_ivory",
+      "interior_joint",
+      "interior_lamp",
+      "interior_metal",
+      "interior_moquette",
+      "interior_needle",
+      "interior_notice",
+      "interior_orange",
+      "interior_pad",
+      "interior_panel",
+      "interior_partition_sign",
+      "interior_pay_screen",
+      "interior_piping",
+      "interior_priority",
+      "interior_priority_sign",
+      "interior_radio",
+      "interior_rockers",
+      "interior_rpm",
+      "interior_seal",
+      "interior_sidewall",
+      "interior_sill",
+      "interior_speed",
+      "interior_stop",
+      "interior_stopred",
+      "interior_strap",
+      "interior_telltales",
+      "interior_ticket",
+      "interior_vent",
+      "interior_ventblade",
+      "interior_wheeltrim"
+    ],
+    "packed_textures": {
+      "boarding.png": true,
+      "cluster.png": true,
+      "driver_cloth.png": true,
+      "exit_sign.png": true,
+      "fare.png": true,
+      "fare_slot.png": true,
+      "ic.png": true,
+      "linoleum.png": true,
+      "moquette.png": true,
+      "notice.png": true,
+      "partition_sign.png": true,
+      "pay_screen.png": true,
+      "priority.png": true,
+      "priority_sign.png": true,
+      "radio.png": true,
+      "rockers.png": true,
+      "rpm.png": true,
+      "speed.png": true,
+      "stop.png": true,
+      "telltales.png": true,
+      "ticket.png": true
+    }
+  },
+  "exterior_intersections": {
+    "interior_meshes": 48,
+    "exterior_meshes": 465,
+    "all_object_pairs": 22320,
+    "aabb_candidates": 136,
+    "crossing_pairs": [],
+    "coplanar_pairs": [],
+    "contained_pairs": []
+  },
+  "shell_envelope": {
+    "rays_with_boundary": {
+      "side": 62061,
+      "end": 59304,
+      "roof": 62442,
+      "underside": 51966
+    },
+    "rays_without_boundary": {
+      "underside": 10480,
+      "end": 3142,
+      "side": 385,
+      "roof": 4
+    },
+    "minimum_axis_clearance": {
+      "side": {
+        "distance_m": 0.027021288871765137,
+        "mesh": "Door_Interior_Fittings",
+        "point": [
+          -1.1375000476837158,
+          4.681000232696533,
+          2.5574800968170166
+        ]
+      },
+      "end": {
+        "distance_m": 0.027655601501464844,
+        "mesh": "Door_Interior_Fittings",
+        "point": [
+          -1.1134999990463257,
+          4.705000400543213,
+          2.5574800968170166
+        ]
+      },
+      "roof": {
+        "distance_m": 0.06117987632751465,
+        "mesh": "Saloon_Lining",
+        "point": [
+          -1.0901764631271362,
+          4.695000171661377,
+          2.702883243560791
+        ]
+      },
+      "underside": {
+        "distance_m": 0.009554564952850342,
+        "mesh": "Cab_Dash_and_Driving_Controls",
+        "point": [
+          0.2574999928474426,
+          4.596560001373291,
+          0.3479999899864197
+        ]
+      }
+    },
+    "outside": []
+  },
+  "convex_hull": {
+    "shell_normal_directions": 1905,
+    "outside": []
+  }
+}

@@ -1,0 +1,595 @@
+{
+ "paint": {
+  "shader": "ksPerPixelMultiMap",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.4
+   ],
+   [
+    "ksDiffuse",
+    0.45
+   ],
+   [
+    "ksSpecular",
+    1.0
+   ],
+   [
+    "ksSpecularEXP",
+    50.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ],
+   [
+    "fresnelC",
+    0.05
+   ],
+   [
+    "fresnelEXP",
+    3.5
+   ],
+   [
+    "fresnelMaxLevel",
+    0.6
+   ],
+   [
+    "nmObjectSpace",
+    0.0
+   ],
+   [
+    "isAdditive",
+    2.0
+   ],
+   [
+    "useDetail",
+    1.0
+   ],
+   [
+    "detailUVMultiplier",
+    20.0
+   ],
+   [
+    "shadowBiasMult",
+    5.0
+   ],
+   [
+    "damageZones",
+    0.0
+   ],
+   [
+    "dirt",
+    0.0
+   ],
+   [
+    "sunSpecular",
+    12.0
+   ],
+   [
+    "sunSpecularEXP",
+    1500.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "paint.dds"
+   ],
+   [
+    "txNormal",
+    1,
+    "flat_nm.dds"
+   ],
+   [
+    "txMaps",
+    2,
+    "maps_default.dds"
+   ],
+   [
+    "txDetail",
+    3,
+    "detail_white.dds"
+   ]
+  ]
+ },
+ "trim_black": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.45
+   ],
+   [
+    "ksDiffuse",
+    0.5
+   ],
+   [
+    "ksSpecular",
+    0.0
+   ],
+   [
+    "ksSpecularEXP",
+    10.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "darkgrey.dds"
+   ]
+  ]
+ },
+ "rubber": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.4
+   ],
+   [
+    "ksDiffuse",
+    0.4
+   ],
+   [
+    "ksSpecular",
+    0.0
+   ],
+   [
+    "ksSpecularEXP",
+    10.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "tyre_black.dds"
+   ]
+  ]
+ },
+ "rim": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.45
+   ],
+   [
+    "ksDiffuse",
+    0.5
+   ],
+   [
+    "ksSpecular",
+    0.6
+   ],
+   [
+    "ksSpecularEXP",
+    60.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "rim_grey.dds"
+   ]
+  ]
+ },
+ "chrome": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.45
+   ],
+   [
+    "ksDiffuse",
+    0.5
+   ],
+   [
+    "ksSpecular",
+    1.0
+   ],
+   [
+    "ksSpecularEXP",
+    120.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "chrome.dds"
+   ]
+  ]
+ },
+ "light_emit": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.45
+   ],
+   [
+    "ksDiffuse",
+    0.5
+   ],
+   [
+    "ksSpecular",
+    0.0
+   ],
+   [
+    "ksSpecularEXP",
+    10.0
+   ],
+   [
+    "ksEmissive",
+    1.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "white.dds"
+   ]
+  ]
+ },
+ "dest_led": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.45
+   ],
+   [
+    "ksDiffuse",
+    0.5
+   ],
+   [
+    "ksSpecular",
+    0.0
+   ],
+   [
+    "ksSpecularEXP",
+    10.0
+   ],
+   [
+    "ksEmissive",
+    1.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "Kanachu_dot_matrix.dds"
+   ]
+  ]
+ },
+ "glass": {
+  "shader": "ksWindscreen",
+  "blend": 1,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.2
+   ],
+   [
+    "ksDiffuse",
+    0.2
+   ],
+   [
+    "ksSpecular",
+    4.0
+   ],
+   [
+    "ksSpecularEXP",
+    430.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "glass.dds"
+   ]
+  ]
+ },
+ "glass_tint": {
+  "shader": "ksWindscreen",
+  "blend": 1,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.2
+   ],
+   [
+    "ksDiffuse",
+    0.2
+   ],
+   [
+    "ksSpecular",
+    4.0
+   ],
+   [
+    "ksSpecularEXP",
+    430.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "glass_tint.dds"
+   ]
+  ]
+ },
+ "glass_light": {
+  "shader": "ksPerPixelReflection",
+  "blend": 1,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.2
+   ],
+   [
+    "ksDiffuse",
+    0.2
+   ],
+   [
+    "ksSpecular",
+    0.5
+   ],
+   [
+    "ksSpecularEXP",
+    100.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ],
+   [
+    "fresnelC",
+    0.1
+   ],
+   [
+    "fresnelEXP",
+    3.0
+   ],
+   [
+    "isAdditive",
+    1.0
+   ],
+   [
+    "fresnelMaxLevel",
+    0.6
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "glass_light.dds"
+   ]
+  ]
+ },
+ "tyre": {
+  "shader": "ksTyres",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.28
+   ],
+   [
+    "ksDiffuse",
+    0.22
+   ],
+   [
+    "ksSpecular",
+    0.6
+   ],
+   [
+    "ksSpecularEXP",
+    20.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ],
+   [
+    "blurLevel",
+    0
+   ],
+   [
+    "dirtyLevel",
+    0
+   ],
+   [
+    "normalLevel",
+    0
+   ],
+   [
+    "groundNormal",
+    0
+   ],
+   [
+    "fresnelC",
+    0
+   ],
+   [
+    "fresnelEXP",
+    0
+   ],
+   [
+    "isAdditive",
+    0
+   ],
+   [
+    "fresnelMaxLevel",
+    0.025
+   ]
+  ],
+  "tex": [
+   [
+    "txDiffuse",
+    0,
+    "tyre_black.dds"
+   ],
+   [
+    "txNormal",
+    1,
+    "flat_nm.dds"
+   ],
+   [
+    "txDirty",
+    2,
+    "tyre_black.dds"
+   ],
+   [
+    "txBlur",
+    3,
+    "tyre_black.dds"
+   ],
+   [
+    "txNormalBlur",
+    4,
+    "flat_nm.dds"
+   ]
+  ]
+ },
+ "mirror": {
+  "shader": "ksPerPixel",
+  "blend": 0,
+  "alpha_tested": 0,
+  "depth_mode": 0,
+  "props": [
+   [
+    "ksAmbient",
+    0.5
+   ],
+   [
+    "ksDiffuse",
+    0.4
+   ],
+   [
+    "ksSpecular",
+    0.0
+   ],
+   [
+    "ksSpecularEXP",
+    10.0
+   ],
+   [
+    "ksEmissive",
+    0.0
+   ],
+   [
+    "ksAlphaRef",
+    0.0
+   ]
+  ],
+  "tex": []
+ }
+}

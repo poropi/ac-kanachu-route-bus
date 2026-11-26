@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.01.08.00">
+    <object class="EventFolder" id="{ba84c084-98cc-5482-bf36-44a62c591038}">
+        <property name="name">
+            <value>kanachu_route_bus</value>
+        </property>
+        <relationship name="folder">
+            <destination>{d3721fc3-d511-4234-a503-e2362da7f3f4}</destination>
+        </relationship>
+    </object>
+</objects>

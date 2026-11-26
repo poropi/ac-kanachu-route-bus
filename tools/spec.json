@@ -1,0 +1,287 @@
+{
+ "length": {
+  "v": 10.43,
+  "src": "isuzu_A"
+ },
+ "width": {
+  "v": 2.485,
+  "src": "isuzu_A"
+ },
+ "height": {
+  "v": 3.105,
+  "src": "isuzu_A"
+ },
+ "wheelbase": {
+  "v": 5.3,
+  "src": "isuzu_A"
+ },
+ "track_f": {
+  "v": 2.065,
+  "src": "isuzu_A"
+ },
+ "track_r": {
+  "v": 1.82,
+  "src": "isuzu_A"
+ },
+ "ground_clearance": {
+  "v": 0.13,
+  "src": "isuzu_A"
+ },
+ "tyre_diameter": {
+  "v": 0.9565,
+  "src": "isuzu_A"
+ },
+ "tyre_width": {
+  "v": 0.275,
+  "src": "isuzu_A"
+ },
+ "mass_vehicle": {
+  "v": 9790,
+  "src": "isuzu_A"
+ },
+ "torque_peak": {
+  "v": 773,
+  "src": "isuzu_A"
+ },
+ "torque_rpm": {
+  "v": 1600,
+  "src": "isuzu_A"
+ },
+ "power_kw": {
+  "v": 169,
+  "src": "isuzu_A"
+ },
+ "power_rpm": {
+  "v": 2150,
+  "src": "isuzu_A"
+ },
+ "gear_1": {
+  "v": 3.486,
+  "src": "isuzu_A"
+ },
+ "gear_2": {
+  "v": 1.864,
+  "src": "isuzu_A"
+ },
+ "gear_3": {
+  "v": 1.409,
+  "src": "isuzu_A"
+ },
+ "gear_4": {
+  "v": 1.0,
+  "src": "isuzu_A"
+ },
+ "gear_5": {
+  "v": 0.749,
+  "src": "isuzu_A"
+ },
+ "gear_6": {
+  "v": 0.652,
+  "src": "isuzu_A"
+ },
+ "gear_reverse": {
+  "v": 5.027,
+  "src": "isuzu_A"
+ },
+ "final_drive": {
+  "v": 6.5,
+  "src": "isuzu_A"
+ },
+ "min_turn_radius": {
+  "v": 8.3,
+  "src": "isuzu_A"
+ },
+ "driver_mass": {
+  "v": 75,
+  "src": "assumption"
+ },
+ "cg_front": {
+  "v": 0.4,
+  "src": "assumption"
+ },
+ "idle_rpm": {
+  "v": 600,
+  "src": "assumption"
+ },
+ "limiter_rpm": {
+  "v": 2550,
+  "src": "assumption"
+ },
+ "tyre_width_rear_phys": {
+  "v": 0.6,
+  "src": "assumption"
+ },
+ "spring_freq_hz": {
+  "v": 1.2,
+  "src": "assumption"
+ },
+ "cd": {
+  "v": 0.6,
+  "src": "assumption"
+ },
+ "steer_lock_deg": {
+  "v": 900,
+  "src": "assumption"
+ },
+ "fuel_l": {
+  "v": 160,
+  "src": "assumption"
+ },
+ "overhang_f": {
+  "v": 2.3,
+  "src": "isuzu_kiseki"
+ },
+ "overhang_r": {
+  "v": 2.83,
+  "src": "isuzu_kiseki"
+ },
+ "hub_mass_f": {
+  "v": 250,
+  "src": "assumption"
+ },
+ "hub_mass_r": {
+  "v": 400,
+  "src": "assumption"
+ },
+ "brake_split_f": {
+  "v": 0.55,
+  "src": "assumption"
+ },
+ "brake_split_r": {
+  "v": 0.45,
+  "src": "assumption"
+ },
+ "cg_height": {
+  "v": 1.1,
+  "src": "assumption"
+ },
+ "tyre_dy": {
+  "v": 0.72,
+  "src": "assumption"
+ },
+ "tyre_deflection": {
+  "v": 0.012,
+  "src": "assumption"
+ },
+ "wheel_inertia_f": {
+  "v": 7.0,
+  "src": "assumption"
+ },
+ "wheel_inertia_r": {
+  "v": 14.0,
+  "src": "assumption"
+ },
+ "engine_inertia": {
+  "v": 1.2,
+  "src": "assumption"
+ },
+ "shift_up_rpm": {
+  "v": 2300,
+  "src": "assumption"
+ },
+ "shift_down_rpm": {
+  "v": 1200,
+  "src": "assumption"
+ },
+ "damp_ratio_bump": {
+  "v": 0.3,
+  "src": "assumption"
+ },
+ "damp_ratio_rebound": {
+  "v": 0.45,
+  "src": "assumption"
+ },
+ "brake_decel_g": {
+  "v": 0.8,
+  "src": "assumption"
+ },
+ "eye_x": {
+  "v": -0.642,
+  "src": "calc",
+  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換"
+ },
+ "eye_y": {
+  "v": 1.985,
+  "src": "calc",
+  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換"
+ },
+ "eye_z": {
+  "v": 3.407,
+  "src": "calc",
+  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換"
+ },
+ "engine_coast_nm": {
+  "v": 200,
+  "src": "assumption"
+ },
+ "bumpstop_up": {
+  "v": 0.1,
+  "src": "assumption"
+ },
+ "bumpstop_dn": {
+  "v": 0.2,
+  "src": "assumption"
+ },
+ "torque_loss_factor": {
+  "v": 0.8,
+  "src": "assumption",
+  "note": "AT with torque converter, overall drivetrain efficiency ≈ 0.80; calibrated: 0.87 gave 7.6 s 0–40 km/h"
+ },
+ "torque_1000rpm": {
+  "v": 640,
+  "src": "assumption"
+ },
+ "torque_idle": {
+  "v": 520,
+  "src": "assumption"
+ },
+ "front_susp_type": {
+  "v": "DWB",
+  "src": "assumption"
+ },
+ "rr0": {
+  "v": 10,
+  "src": "assumption",
+  "note": "AC scales by load internally; values copied from HT81S, same order as Kunos AE86"
+ },
+ "rr1": {
+  "v": 0.000973,
+  "src": "assumption",
+  "note": "AC scales by load internally; values copied from HT81S, same order as Kunos AE86"
+ },
+ "rr_slip": {
+  "v": 4668,
+  "src": "assumption",
+  "note": "AC scales by load internally; values copied from HT81S, same order as Kunos AE86"
+ },
+ "steer_rod_gain": {
+  "v": 1.097,
+  "src": "assumption",
+  "note": "calibrated from circle_drift_083318: outer-front radius 9.10 m at gain 1.0"
+ },
+ "speed_max_kmh": {
+  "v": 160,
+  "src": "calc",
+  "note": "design/interior ARROW_SPEED maximum"
+ },
+ "speed_needle_deg": {
+  "v": 208,
+  "src": "calc",
+  "note": "design/interior report: 0→最大の時計回りの振れ角 (-103→+105)。HT81S と同じく STEP 正（ノードのローカル Z は運転手から遠ざかる向きに kn5_axes で揃える）"
+ },
+ "rpm_max": {
+  "v": 4000,
+  "src": "calc",
+  "note": "design/interior ARROW_RPM maximum"
+ },
+ "rpm_needle_deg": {
+  "v": 171,
+  "src": "calc",
+  "note": "design/interior report: 0→最大の時計回りの振れ角 (-103→+68)。同上"
+ },
+ "onboard_pitch_deg": {
+  "v": -9,
+  "src": "assumption",
+  "note": "circle_drift_091041 cockpit capture looked straight ahead (pitch -2) and showed only the dash top edge; interior render 01_driver_eye.png (60° FOV) puts the horizon ~1/3 from top with wheel and gauges visible, i.e. ~8-10° down"
+ }
+}
