@@ -139,7 +139,8 @@ local function releaseCamera() if grabbed then pcall(function() grabbed:dispose(
 -- ac.SceneReference with :size() and :setVisible()). ':' may be read as a filter key by CSP, so '?' (single-character wildcard, which hit
 -- in an earlier CSP Lua probe where '*' did not) is tried as well; the multi-material head meshes are kind-1 nodes with _SUBn meshes.
 -- Every attempt and its count is logged; nothing found or no API -> HIDE_UNAVAILABLE. Visibility is restored right after the shot.
-local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP'}
+local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP'}   -- in build/driver/kanachu_driver.kn5 each is a kind-1 node with kind-2 meshes <name>_SUB0, _SUB1
+local HIDE_MAX = 8                                        -- more matches than this for one filter are logged, not hidden
 local hiddenRefs = nil
 local function hideDriverHead(hide)
   if hide then
@@ -150,6 +151,7 @@ local function hideDriverHead(hide)
       local ok, ref = pcall(finder)
       local cnt = 0
       if ok and ref then pcall(function() cnt = ref:size() end) end
+      if cnt > HIDE_MAX then notes[#notes + 1] = string.format('%s=%d TOO_MANY_NOT_HIDDEN', label, cnt); return end   -- a filter read differently could match the whole scene
       if cnt > 0 and pcall(function() ref:setVisible(false) end) then hiddenRefs[#hiddenRefs + 1] = ref; total = total + cnt end
       notes[#notes + 1] = string.format('%s=%s', label, ok and tostring(cnt) or 'err')
     end
@@ -189,6 +191,7 @@ local function stepShots(dt, c)
     if j.cam == 'eyedown' then local okh, errh = pcall(hideDriverHead, true); if not okh then record('eyedown hide err '..tostring(errh)..' HIDE_UNAVAILABLE') end end
   end
   if not NATIVE[j.cam] then local ok, pos, tt, lk, upv = pcall(externalCam, j.cam, c); if ok and pos then j.camPos = pos; j.camTT = tt; j.camLook = lk; j.camUp = upv end end
+  if hiddenRefs then for _, ref in ipairs(hiddenRefs) do pcall(function() ref:setVisible(false) end) end end   -- re-apply every frame in case AC restores visibility
   j.wait = j.wait - dt
   -- run circleramp_drift_20261126_104809: setCurrentCarCamera right after switching the mode stayed at index 0, so keep re-applying while waiting
   if j.wait > 0 then if NATIVE[j.cam] and j.cam ~= 'cockpit' then pcall(setCamera, j.cam, c) end; return end
@@ -280,13 +283,13 @@ local function circleControl(c)
   if phase == 'Z' then
     ctl.steer = 0; ctl.gas = 0; ctl.brake = 1
     if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('still', DRV_SHOTS)
-    elseif sShot and not shotJob then phase = 'S'; sT = elapsed; sShot = false; record('phase Z done') end
+    elseif sShot and not shotJob then phase = 'S'; sT = elapsed; driveStart = elapsed; sShot = false; record('phase Z done') end
     return
   end
   if phase == 'S' then
     ctl.steer = 0.1; ctl.gas = 0; ctl.brake = 1
     if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steer90', DRV_SHOTS)
-    elseif sShot and not shotJob then phase = 'S2'; sT = elapsed; sShot = false; record('phase S done') end
+    elseif sShot and not shotJob then phase = 'S2'; sT = elapsed; driveStart = elapsed; sShot = false; record('phase S done') end
     return
   end
   -- S2: the same at 90 deg to the LEFT (steer -0.1), so the driver's hands can be judged at 0 / +90 / -90 (original driver, Task 8)
@@ -430,7 +433,7 @@ function script.update(dt)
     end
     stepShots(dt, c); return
   end
-  local t = elapsed - driveStart
+  local t = elapsed - driveStart    -- circle: driveStart is reset after each standing phase (Z, S, S2), so the 30 s shots and the end never start while standing
   if mode == 'circle' or mode == 'circleramp' then
     local f = (mode == 'circleramp' and phase == 'B' and phaseBT and elapsed - phaseBT >= 12) and rampControl or circleControl
     local ok, err = pcall(f, c, dt); if not ok then record('ctlerr '..tostring(err)) end
