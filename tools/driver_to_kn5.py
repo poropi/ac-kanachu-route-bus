@@ -6,6 +6,12 @@
 #   DRIVER:DRIVER（種類 1）→ 骨の階層（種類 1、行列は親からの相対）
 #     RIG_Head の子 = HEAD_MESHES（種類 2、頂点は頭の骨のローカル座標）
 #     根の直下に <名前>（種類 1、単位行列）→ その子に <名前>（種類 3、骨で動くメッシュ）。頂点は世界座標（バインド姿勢）
+#   メッシュは面が使うマテリアルごとに分ける（使わない枠は飛ばす）。Kunos の DRIVER:HELMET（種類 1）→
+#   DRIVER:HELMET_SUB0 / _SUB1（種類 2）と同じ形:
+#     頭のメッシュ: 1 マテリアルなら <名前>（種類 2）のまま。複数なら <名前>（種類 1、単位行列）の子に
+#       <名前>_SUB0, _SUB1, …（種類 2、マテリアルの枠の順）。driver3d.ini の HIDE_OBJECT は <名前> のまま効く
+#     骨で動くメッシュ: <名前>（種類 1）の子に、1 マテリアルなら <名前>、複数なら <名前>_SUB0, _SUB1, …（種類 3）。
+#       骨リストと骨番号は部分ごとに、その部分の頂点が使う骨だけで振り直す
 #
 # Kunos の driver.kn5 を調べて分かったこと（データは写していない）:
 #   - ノード行列は 16 個の float で、平行移動が 12〜14（行ベクトル規約）。世界行列 = 自分 @ 親（行ベクトル）。
@@ -33,16 +39,26 @@ def to_kn5(a): return np.c_[-a[:, 0], a[:, 2], a[:, 1]]
 def row(m): return tuple(float(x) for x in np.asarray(m, "f8").T.ravel())   # 列ベクトル規約の行列 -> kn5 の並び
 def row_bytes(m): return struct.pack("<16f", *row(m))
 
-mats, mat_index, texs = [], {}, {}
+mats, mat_index, texs, tex_src = [], {}, {}, {}   # tex_src: テクスチャ名 -> 元の画像名（単色なら None）
+
+def material_image(m):
+    """マテリアルの画像（最初の Image Texture ノード）。無ければ None。"""
+    if m.use_nodes and m.node_tree:
+        for nd in m.node_tree.nodes:
+            if nd.type == "TEX_IMAGE" and nd.image is not None and nd.image.size[0] > 0:
+                return nd.image
+    return None
+
+def material_texture_name(m):
+    """kn5 のテクスチャ名。画像があれば画像の名前（拡張子を除く）+ .dds で、同じ画像を使うマテリアルどうしは 1 枚を共有する
+    （実モデルでは制服・靴・金具・首の 4 マテリアルが 2048x1536 の 1 枚を使う）。画像が無ければマテリアル名 + .dds（基本色の単色）。"""
+    img = material_image(m)
+    return (os.path.splitext(img.name)[0] if img is not None else m.name) + ".dds", img
 
 def material_texture(m):
     """マテリアルの画像（Image Texture ノード）を DDS にする。画像が無ければ基本色の単色。"""
-    img = None
-    if m.use_nodes and m.node_tree:
-        for nd in m.node_tree.nodes:
-            if nd.type == "TEX_IMAGE" and nd.image is not None:
-                img = nd.image; break
-    if img is not None and img.size[0] > 0:
+    img = material_image(m)
+    if img is not None:
         w, h = img.size
         px = np.empty(w * h * 4, "f4"); img.pixels.foreach_get(px)
         arr = np.clip(px.reshape(h, w, 4)[::-1] * 255 + 0.5, 0, 255).astype(np.uint8)   # Blender は下から上
@@ -64,13 +80,16 @@ def shared_texture(name):
         texs[name] = kn5io.Tex(1, name, dds_from_rgba(np.broadcast_to(np.array(SHARED[name], np.uint8), (4, 4, 4))))
     return name
 
-def matid(ob, shader):
-    m = ob.active_material
-    if m is None: raise SystemExit("object %s has no material" % ob.name)
+def matid(m, shader):
+    """Blender のマテリアル m を kn5 のマテリアル番号にする。同じ (マテリアル, シェーダー) は 1 回だけ書く。"""
     key = (m.name, shader)
     if key not in mat_index:
-        tname = m.name + ".dds"
-        if tname not in texs: texs[tname] = kn5io.Tex(1, tname, material_texture(m))
+        tname, img = material_texture_name(m)
+        src = img.name if img is not None else None
+        if tname not in texs:
+            texs[tname] = kn5io.Tex(1, tname, material_texture(m)); tex_src[tname] = src
+        elif tex_src.get(tname, src) != src:   # 画像の名前とマテリアル名がぶつかった（中身が違うのに同じ名前になる）
+            raise SystemExit("texture name %s is used by different sources (%s / %s)" % (tname, tex_src[tname], src))
         if shader == "ksPerPixel":
             props = [("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
                      ("ksEmissive", 0.0), ("ksAlphaRef", 0.0)]
@@ -116,6 +135,7 @@ def mesh_arrays(ob, bone_names=None):
         UV = np.empty(nl * 2, "f4"); me.uv_layers[0].data.foreach_get("uv", UV); UV = UV.reshape(-1, 2)
         LV = np.empty(nl, "i8"); me.loops.foreach_get("vertex_index", LV)
         tri = np.empty(len(me.loop_triangles) * 3, "i8"); me.loop_triangles.foreach_get("loops", tri)
+        FM = np.empty(len(me.loop_triangles), "i8"); me.loop_triangles.foreach_get("material_index", FM)
     finally:
         bpy.data.meshes.remove(me)
     # オブジェクトの世界変換（Blender 座標）を焼き込む。法線は逆転置、接線は線形部分。鏡像なら巻き方向を戻す
@@ -124,7 +144,25 @@ def mesh_arrays(ob, bone_names=None):
     Nw = N @ np.linalg.inv(L).T; Nw /= np.maximum(np.linalg.norm(Nw, axis=1, keepdims=True), 1e-12)
     Tw = T @ L.T
     if np.linalg.det(L) < 0: tri = tri.reshape(-1, 3)[:, ::-1].ravel()
-    return Pw, Nw, UV, Tw, LV, tri, W
+    return Pw, Nw, UV, Tw, LV, tri, W, material_groups(ob, FM, tri)
+
+def material_groups(ob, FM, tri):
+    """三角形を、使うマテリアルごとに [(マテリアル, その三角形のループ番号)] に分ける。並びはマテリアルの枠の順。
+    面が使わない枠は飛ばす。同じマテリアルが 2 つの枠にあれば 1 つにまとめる。"""
+    slots = ob.material_slots
+    if not slots: raise SystemExit("object %s has no material" % ob.name)
+    FM = np.clip(FM, 0, len(slots) - 1)   # 枠より大きい番号は最後の枠（Blender の描画と同じ）
+    T = tri.reshape(-1, 3)
+    groups = {}
+    for i in sorted(set(FM.tolist())):
+        m = slots[i].material
+        if m is None: raise SystemExit("object %s material slot %d is empty" % (ob.name, i))
+        groups.setdefault(m.name, [m, np.zeros(len(FM), bool)])[1] |= FM == i
+    return [(m, T[mask].ravel()) for m, mask in groups.values()]
+
+def sub_names(name, groups):
+    """1 マテリアルなら <名前>、複数なら <名前>_SUB0, _SUB1, …（Kunos の DRIVER:HELMET_SUB0 と同じ付け方）。"""
+    return [name] if len(groups) == 1 else ["%s_SUB%d" % (name, i) for i in range(len(groups))]
 
 def weights_of(ob, me, bone_names):
     """頂点ごとに [(骨名, 重み)]（上位 4 本、合計 1 に正規化）。重みの無い頂点は SystemExit。"""
@@ -152,33 +190,45 @@ def common(Pk, Nk, UV, Tk):
     return [Pk, Nk, np.c_[UV[:, 0], 1 - UV[:, 1]], Tk]   # UV の v は反転（blend_to_kn5 と同じ）
 
 def static_node(ob, name, bone_world_inv):
-    """頭の骨に付く固定メッシュ（種類 2）。頂点は骨のローカル座標（kn5 空間）。"""
-    Pw, Nw, UV, Tw, LV, tri, _ = mesh_arrays(ob)
+    """頭の骨に付く固定メッシュ（種類 2）。頂点は骨のローカル座標（kn5 空間）。
+    複数マテリアルなら、単位行列の <名前>（種類 1）の子に <名前>_SUBi（種類 2）を並べたものを返す。"""
+    Pw, Nw, UV, Tw, LV, tri, _, groups = mesh_arrays(ob)
     Pk, Nk, Tk = to_kn5(Pw), to_kn5(Nw), to_kn5(Tw)
     Bi = bone_world_inv; Lb = Bi[:3, :3]                       # 世界 -> 骨ローカル（kn5、回転のみ）
     Pk = Pk @ Lb.T + Bi[:3, 3]; Nk = Nk @ Lb.T; Tk = Tk @ Lb.T
     rec = np.nan_to_num(np.column_stack(common(Pk, Nk, UV, Tk)).astype("<f4"))
-    n = kn5io.Node(2, name, 1); n.matid = matid(ob, "ksPerPixel")
-    n.cast = 1; n.visible = 1
-    uniq = finish(n, rec, tri)
-    c = uniq[:, :3].mean(0); rad = float(np.linalg.norm(uniq[:, :3] - c, axis=1).max())
-    n.bsphere = (float(c[0]), float(c[1]), float(c[2]), rad)
-    return n
+    out = []
+    for nm, (m, t) in zip(sub_names(name, groups), groups):
+        n = kn5io.Node(2, nm, 1); n.matid = matid(m, "ksPerPixel")
+        n.cast = 1; n.visible = 1
+        uniq = finish(n, rec, t)
+        c = uniq[:, :3].mean(0); rad = float(np.linalg.norm(uniq[:, :3] - c, axis=1).max())
+        n.bsphere = (float(c[0]), float(c[1]), float(c[2]), rad)
+        out.append(n)
+    if len(out) == 1: return out[0]
+    return kn5io.Node(1, name, 1, children=out, matrix=row(np.eye(4)))   # 単位行列なので世界での位置は変わらない
 
-def skinned_node(ob, name, bone_inv):
-    """骨で動くメッシュ（種類 3）。頂点は kn5 の世界座標（バインド姿勢）。bone_inv: 骨名 -> 逆バインド行列（kn5 の並び）。"""
-    Pw, Nw, UV, Tw, LV, tri, W = mesh_arrays(ob, set(bone_inv))
-    used = [b for b, _ in BONES if any(b == bn for ws in W for bn, _ in ws)]
-    index = {b: i for i, b in enumerate(used)}
-    nv = len(W); WT = np.zeros((nv, 4), "f4"); WI = -np.ones((nv, 4), "f4")
-    for i, ws in enumerate(W):
-        for j, (bn, w) in enumerate(ws): WT[i, j] = w; WI[i, j] = index[bn]
-    rec = np.nan_to_num(np.column_stack(common(to_kn5(Pw), to_kn5(Nw), UV, to_kn5(Tw)) + [WT[LV], WI[LV]]).astype("<f4"))
-    n = kn5io.Node(3, name, 1); n.matid = matid(ob, SKINNED_SHADER)
-    n.cast = 1; n.visible = 1
-    finish(n, rec, tri)
-    n.bones = [(b, bone_inv[b]) for b in used]
-    return n
+def skinned_nodes(ob, name, bone_inv):
+    """骨で動くメッシュ（種類 3）をマテリアルごとに返す。頂点は kn5 の世界座標（バインド姿勢）。
+    bone_inv: 骨名 -> 逆バインド行列（kn5 の並び）。骨リストはその部分の頂点が使う骨だけ（BONES の順）。"""
+    Pw, Nw, UV, Tw, LV, tri, W, groups = mesh_arrays(ob, set(bone_inv))
+    base = np.column_stack(common(to_kn5(Pw), to_kn5(Nw), UV, to_kn5(Tw)))
+    out = []
+    for nm, (m, t) in zip(sub_names(name, groups), groups):
+        verts = np.unique(LV[t])
+        names = {bn for i in verts for bn, _ in W[i]}
+        used = [b for b, _ in BONES if b in names]
+        index = {b: i for i, b in enumerate(used)}
+        nv = len(W); WT = np.zeros((nv, 4), "f4"); WI = -np.ones((nv, 4), "f4")
+        for i in verts:
+            for j, (bn, w) in enumerate(W[i]): WT[i, j] = w; WI[i, j] = index[bn]
+        rec = np.nan_to_num(np.column_stack([base, WT[LV], WI[LV]]).astype("<f4"))
+        n = kn5io.Node(3, nm, 1); n.matid = matid(m, SKINNED_SHADER)
+        n.cast = 1; n.visible = 1
+        finish(n, rec, t)
+        n.bones = [(b, bone_inv[b]) for b in used]
+        out.append(n)
+    return out
 
 def main():
     OUT = opt("--out")
@@ -209,7 +259,7 @@ def main():
         ob = bpy.data.objects.get(n)
         if ob is None or ob.type != "MESH": raise SystemExit("mesh %s not found" % n)
         dummy = kn5io.Node(1, n, 1, matrix=row(np.linalg.inv(K[ARMATURE])))   # 頂点は世界座標なので、根の変換を打ち消して世界で単位にする
-        dummy.children = [skinned_node(ob, n, bone_inv)]
+        dummy.children = skinned_nodes(ob, n, bone_inv)
         root.children.append(dummy)
     k = kn5io.Kn5(5, None, list(texs.values()), mats, root)
     os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)

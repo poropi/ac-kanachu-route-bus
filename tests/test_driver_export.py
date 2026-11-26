@@ -224,3 +224,125 @@ def test_mirror_modifier_applied(kn5, tmp_path):
     assert len(v) == 2 * (len(base.vertices) // 76)
     assert np.allclose(v[:, 11:15].sum(1), 1, atol=1e-4) and v[:, 15:19].max() < len(n.bones)
     assert v[:, 0].min() < -0.3 and v[:, 0].max() > 0.3   # 両側に頂点がある
+
+
+# --- マテリアルごとに分ける（Kunos の DRIVER:HELMET → DRIVER:HELMET_SUB0 / _SUB1 と同じ形） ---
+
+@pytest.fixture(scope="module")
+def multi(tmp_path_factory):
+    """DRIVER:BODY が 3 枠（真ん中は未使用）・DRIVER:HAIR が 2 枠のマテリアルを使う .blend の書き出し。"""
+    tmp = tmp_path_factory.mktemp("multi")
+    r, out = export(variant(tmp, "multi_material"), tmp)
+    assert out.exists(), r.stdout + r.stderr
+    return kn5io.read(out)
+
+
+def by_name(k):
+    return {n.name: n for n in kn5io.walk(k.root)}
+
+
+def bone_of_position(n):
+    """種類 3 の頂点の位置（丸め） -> 重み 1 の骨名の集合。"""
+    v = np.frombuffer(n.vertices, "<f4").reshape(-1, 19)
+    names = [b for b, _ in n.bones]
+    out = {}
+    for row_ in v:
+        key = tuple(np.round(row_[:3], 4))
+        out.setdefault(key, set()).update(names[int(i)] for w, i in zip(row_[11:15], row_[15:19]) if w > 0)
+    return out
+
+
+def test_multi_material_skinned_split(kn5, multi):
+    k, base = multi, kn5[0]
+    dummy = next(n for n in k.root.children if n.name == "DRIVER:BODY")
+    assert dummy.cls == 1
+    assert [(c.cls, c.name) for c in dummy.children] == [(3, "DRIVER:BODY_SUB0"), (3, "DRIVER:BODY_SUB1")]
+    s0, s1 = dummy.children
+    assert [k.materials[s.matid].name for s in (s0, s1)] == ["driver_suit_skinned", "driver_shoes_skinned"]
+    assert all(k.materials[s.matid].shader == "ksSkinnedMesh" for s in (s0, s1))
+    # 同じ画像を使う 2 つのマテリアルは、kn5 のテクスチャ 1 枚を共有する
+    tnames = [t.name for t in k.textures]
+    assert tnames.count("driver_tex.dds") == 1 and len(tnames) == len(set(tnames))
+    assert [k.materials[s.matid].tex[0][2] for s in (s0, s1)] == ["driver_tex.dds", "driver_tex.dds"]
+    assert "driver_unused" not in {t.name[:-4] for t in k.textures} | {m.name.replace("_skinned", "") for m in k.materials}
+    # 頂点数・三角形数の合計は 1 マテリアルの書き出しと同じ
+    one = skinned(base)["DRIVER:BODY"]
+    assert sum(len(s.vertices) // 76 for s in (s0, s1)) == len(one.vertices) // 76
+    assert sum(len(s.indices) for s in (s0, s1)) == len(one.indices)
+    # 骨はその部分が使うものだけで、番号は部分ごとに振り直す（上面は RIG_Cest だけ）
+    assert [b for b, _ in s1.bones] == ["DRIVER:RIG_Cest"]
+    assert [b for b, _ in s0.bones] == ["DRIVER:RIG_Hips", "DRIVER:RIG_Cest"]
+    W = world_matrices(k.root)
+    for s in (s0, s1):
+        v = np.frombuffer(s.vertices, "<f4").reshape(-1, 19)
+        assert np.allclose(v[:, 11:15].sum(1), 1, atol=1e-4)
+        assert v[:, 15:19].max() < len(s.bones) and v[:, 15:19].min() >= -1
+        for bn, bm in s.bones:
+            B = np.frombuffer(bm, "<f4").reshape(4, 4).astype(float)
+            assert np.abs(W[bn] @ B - np.eye(4)).max() < 1e-4
+    # 各頂点の骨は 1 マテリアルの書き出しと同じ骨を指す
+    ref = bone_of_position(one)
+    for s in (s0, s1):
+        for key, bones in bone_of_position(s).items():
+            assert ref[key] == bones, key
+    # 骨で動くもう一方のメッシュ（1 マテリアル）は今までどおり
+    gl = next(n for n in k.root.children if n.name == "DRIVER:GLOVES")
+    assert [(c.cls, c.name) for c in gl.children] == [(3, "DRIVER:GLOVES")]
+
+
+def test_multi_material_head_split(kn5, multi):
+    k, base = multi, kn5[0]
+    head = next(n for n in kn5io.walk(k.root) if n.name == "DRIVER:RIG_Head")
+    kids = {c.name: c for c in head.children}
+    hair = kids["DRIVER:HAIR"]
+    assert hair.cls == 1 and np.allclose(np.array(hair.matrix).reshape(4, 4), np.eye(4))
+    assert [(c.cls, c.name) for c in hair.children] == [(2, "DRIVER:HAIR_SUB0"), (2, "DRIVER:HAIR_SUB1")]
+    s0, s1 = hair.children
+    assert [k.materials[s.matid].name for s in (s0, s1)] == ["driver_hair", "driver_skin"]
+    assert all(k.materials[s.matid].shader == "ksPerPixel" for s in (s0, s1))
+    # 顔と共有する driver_skin はマテリアルもテクスチャも 1 回だけ
+    assert s1.matid == kids["DRIVER:GEO_Driver_FACE"].matid
+    mnames, tnames = [m.name for m in k.materials], [t.name for t in k.textures]
+    assert len(mnames) == len(set(mnames)) and len(tnames) == len(set(tnames))
+    # 1 マテリアルの頭のメッシュはそのまま種類 2
+    assert kids["DRIVER:GEO_Driver_FACE"].cls == 2 and kids["DRIVER:CAP"].cls == 2
+    for s in (s0, s1):
+        c = np.frombuffer(s.vertices, "<f4").reshape(-1, 11)[:, :3]
+        assert np.linalg.norm(c - s.bsphere[:3], axis=1).max() <= s.bsphere[3] + 1e-5
+    # 頂点の世界位置は 1 マテリアルの書き出しと同じ
+    def world_rows(k_, nodes):
+        W = world_matrices(k_.root)
+        rows = []
+        for n in nodes:
+            v = np.frombuffer(n.vertices, "<f4").reshape(-1, 11)
+            rows.append(np.c_[v[:, :3], np.ones(len(v))] @ W[n.name])
+        p = np.round(np.vstack(rows)[:, :3], 5)
+        return p[np.lexsort(p.T[::-1])]
+    one = by_name(base)["DRIVER:HAIR"]
+    assert np.array_equal(world_rows(k, [s0, s1]), world_rows(base, [one]))
+    assert sum(len(s.indices) for s in (s0, s1)) == len(one.indices)
+
+
+def test_single_material_unchanged(kn5, tmp_path):
+    """1 マテリアルだけの .blend は、マテリアルで分ける前のコード（bd94908）とバイト一致する。
+    使わない枠が増えても（面が 1 つの枠だけを使えば）同じ。"""
+    k, out = kn5
+    head = next(n for n in kn5io.walk(k.root) if n.name == "DRIVER:RIG_Head")
+    assert [(c.cls, c.name) for c in head.children] == [(2, n) for n in HEAD_MESHES]
+    assert [(n.cls, n.name, [(c.cls, c.name) for c in n.children]) for n in k.root.children if n.name in SKINNED_MESHES] \
+        == [(1, n, [(3, n)]) for n in SKINNED_MESHES]
+    r, extra = export(variant(tmp_path, "single_slot_extra"), tmp_path)
+    assert extra.exists(), r.stdout + r.stderr
+    assert extra.read_bytes() == out.read_bytes()
+    src = subprocess.run(["git", "-C", str(ROOT), "show", "bd94908:tools/driver_to_kn5.py"], capture_output=True, text=True)
+    if src.returncode != 0:
+        pytest.skip("git history (bd94908) not available")
+    old = tmp_path / "driver_to_kn5_bd94908.py"
+    old.write_text("import sys; sys.path.insert(0, %r)\n" % str(ROOT / "tools") + src.stdout)
+    blend = tmp_path / "base.blend"
+    make(tmp_path)
+    (tmp_path / "ok.blend").rename(blend)
+    ref = tmp_path / "ref.kn5"
+    r = blender(str(blend), "--python", str(old), "--", "--out", str(ref))
+    assert ref.exists(), r.stdout + r.stderr
+    assert ref.read_bytes() == out.read_bytes()
