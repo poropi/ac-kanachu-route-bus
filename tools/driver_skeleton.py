@@ -1,0 +1,78 @@
+"""運転手の骨組みの定義（骨名の唯一の出どころ）。
+
+kn5 書き出し・座った姿勢（knh）・ハンドルの腕の動き（ksanim）は、すべてここの BONES を使う。
+名前と親子は AC 標準の運転手（refs/kunos_driver/driver.kn5）に合わせるための識別子で、
+形・行列・動きは写していない。kn5 から自動生成せず、文字で書いてある（kn5 は試験で照合するだけ）。
+
+骨の選び方: 種類 1（ダミー）のノードのうち、
+  - 根の `DRIVER:DRIVER`、
+  - 名前が `DRIVER:RIG_` で始まるもの（胴・頭・腕・肩・脚）、
+  - 名前が `DRIVER:HAND_` で始まるもの（指）
+だけを骨とする。`DRIVER:HELMET*`・`DRIVER:GEO_Driver_FACE`・`DRIVER:COLLARE_HANS`・`DRIVER:Gloves`・
+`DRIVER:suit` は骨ではなく、メッシュを載せるための入れ物なので含めない。
+親は「骨だけをたどった祖先」（kn5 の根 `FBX: ...` は親にしない）。順は親が先。
+"""
+
+BONES = [
+    ('DRIVER:DRIVER', None),
+    ('DRIVER:RIG_Center', 'DRIVER:DRIVER'),
+    ('DRIVER:RIG_Hips', 'DRIVER:RIG_Center'),
+    ('DRIVER:RIG_Cest', 'DRIVER:RIG_Hips'),
+    ('DRIVER:RIG_Nek', 'DRIVER:RIG_Cest'),
+    ('DRIVER:RIG_Head', 'DRIVER:RIG_Nek'),
+    ('DRIVER:RIG_Clave_L', 'DRIVER:RIG_Cest'),
+    ('DRIVER:RIG_Arm_L', 'DRIVER:RIG_Clave_L'),
+    ('DRIVER:RIG_ForeArm_L', 'DRIVER:RIG_Arm_L'),
+    ('DRIVER:RIG_ForeArm_END_L', 'DRIVER:RIG_ForeArm_L'),
+    ('DRIVER:RIG_HAND_L', 'DRIVER:RIG_ForeArm_END_L'),
+    ('DRIVER:HAND_L_Thumb1', 'DRIVER:RIG_HAND_L'),
+    ('DRIVER:HAND_L_Thumb2', 'DRIVER:HAND_L_Thumb1'),
+    ('DRIVER:HAND_L_Thumb3', 'DRIVER:HAND_L_Thumb2'),
+    ('DRIVER:HAND_Index1', 'DRIVER:RIG_HAND_L'),
+    ('DRIVER:HAND_Index2', 'DRIVER:HAND_Index1'),
+    ('DRIVER:HAND_Index3', 'DRIVER:HAND_Index2'),
+    ('DRIVER:HAND_Middle1', 'DRIVER:RIG_HAND_L'),
+    ('DRIVER:HAND_Middle2', 'DRIVER:HAND_Middle1'),
+    ('DRIVER:HAND_Middle3', 'DRIVER:HAND_Middle2'),
+    ('DRIVER:HAND_Ring1', 'DRIVER:RIG_HAND_L'),
+    ('DRIVER:HAND_Ring2', 'DRIVER:HAND_Ring1'),
+    ('DRIVER:HAND_Ring3', 'DRIVER:HAND_Ring2'),
+    ('DRIVER:HAND_Pinkie1', 'DRIVER:RIG_HAND_L'),
+    ('DRIVER:HAND_Pinkie2', 'DRIVER:HAND_Pinkie1'),
+    ('DRIVER:HAND_Pinkie3', 'DRIVER:HAND_Pinkie2'),
+    ('DRIVER:RIG_Shoulder_L', 'DRIVER:RIG_Clave_L'),
+    ('DRIVER:RIG_Clave_R', 'DRIVER:RIG_Cest'),
+    ('DRIVER:RIG_Arm_R', 'DRIVER:RIG_Clave_R'),
+    ('DRIVER:RIG_ForeArm_R', 'DRIVER:RIG_Arm_R'),
+    ('DRIVER:RIG_ForeArm_END_R', 'DRIVER:RIG_ForeArm_R'),
+    ('DRIVER:RIG_HAND_R', 'DRIVER:RIG_ForeArm_END_R'),
+    ('DRIVER:HAND_R_Thumb1', 'DRIVER:RIG_HAND_R'),
+    ('DRIVER:HAND_R_Thumb2', 'DRIVER:HAND_R_Thumb1'),
+    ('DRIVER:HAND_R_Thumb3', 'DRIVER:HAND_R_Thumb2'),
+    ('DRIVER:HAND_Index4', 'DRIVER:RIG_HAND_R'),
+    ('DRIVER:HAND_Index5', 'DRIVER:HAND_Index4'),
+    ('DRIVER:HAND_Index6', 'DRIVER:HAND_Index5'),
+    ('DRIVER:HAND_Middle4', 'DRIVER:RIG_HAND_R'),
+    ('DRIVER:HAND_Middle5', 'DRIVER:HAND_Middle4'),
+    ('DRIVER:HAND_Middle6', 'DRIVER:HAND_Middle5'),
+    ('DRIVER:HAND_Ring4', 'DRIVER:RIG_HAND_R'),
+    ('DRIVER:HAND_Ring5', 'DRIVER:HAND_Ring4'),
+    ('DRIVER:HAND_Ring6', 'DRIVER:HAND_Ring5'),
+    ('DRIVER:HAND_Pinkie4', 'DRIVER:RIG_HAND_R'),
+    ('DRIVER:HAND_Pinkie5', 'DRIVER:HAND_Pinkie4'),
+    ('DRIVER:HAND_Pinkie6', 'DRIVER:HAND_Pinkie5'),
+    ('DRIVER:RIG_Shoulder_R', 'DRIVER:RIG_Clave_R'),
+    ('DRIVER:RIG_Leg_L', 'DRIVER:RIG_Center'),
+    ('DRIVER:RIG_Shin_L', 'DRIVER:RIG_Leg_L'),
+    ('DRIVER:RIG_Hill_L', 'DRIVER:RIG_Shin_L'),
+    ('DRIVER:RIG_Foot_L', 'DRIVER:RIG_Hill_L'),
+    ('DRIVER:RIG_Leg_R', 'DRIVER:RIG_Center'),
+    ('DRIVER:RIG_Shin_R', 'DRIVER:RIG_Leg_R'),
+    ('DRIVER:RIG_Hill_R', 'DRIVER:RIG_Shin_R'),
+    ('DRIVER:RIG_Foot_R', 'DRIVER:RIG_Hill_R'),
+]
+
+# 頭の骨 `DRIVER:RIG_Head` に骨で親子付けする固定メッシュ（運転席の視点から隠す対象）
+HEAD_MESHES = ("DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP")
+# 骨で動くメッシュ（Armature モディファイアと、骨名の頂点グループを持つ）
+SKINNED_MESHES = ("DRIVER:BODY", "DRIVER:GLOVES")
