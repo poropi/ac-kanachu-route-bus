@@ -61,8 +61,9 @@ def read(path):
             vc = r.u("i"); n.vertices = r.raw(vc * (44 if cls == 2 else 76))
             ic = r.u("i"); n.indices = list(struct.unpack_from("<%dH" % ic, r.b, r.p)); r.p += 2 * ic
             n.matid, n.layer, n.lod_in, n.lod_out = r.u("i"), r.u("i"), r.u("f"), r.u("f")
-            n.bsphere = r.u("4f")
-            if ver > 4: n.renderable = r.u("B")
+            if cls == 2:                       # 骨で動くメッシュ（3）は外接球と描画フラグを持たない（AC の driver.kn5 で確認）
+                n.bsphere = r.u("4f")
+                if ver > 4: n.renderable = r.u("B")
         else:
             raise ValueError("bad node class %d at %d" % (cls, r.p))
         n.children = [node() for _ in range(cc)]
@@ -101,8 +102,10 @@ def write(k, path):
             stride = 44 if n.cls == 2 else 76
             o.extend([struct.pack("<i", len(n.vertices) // stride), n.vertices,
                       struct.pack("<i", len(n.indices)), struct.pack("<%dH" % len(n.indices), *n.indices),
-                      struct.pack("<iiff", n.matid, n.layer, n.lod_in, n.lod_out), struct.pack("<4f", *n.bsphere)])
-            if k.version > 4: o.append(struct.pack("<B", n.renderable))
+                      struct.pack("<iiff", n.matid, n.layer, n.lod_in, n.lod_out)])
+            if n.cls == 2:
+                o.append(struct.pack("<4f", *n.bsphere))
+                if k.version > 4: o.append(struct.pack("<B", n.renderable))
         for c in n.children: node(c)
     node(k.root)
     with open(path, "wb") as fh:
