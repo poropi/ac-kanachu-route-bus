@@ -21,7 +21,7 @@
 import bpy, bmesh, sys, os, struct, numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kn5io
-from driver_skeleton import BONES, HEAD_MESHES, SKINNED_MESHES
+from driver_skeleton import AC_AXES_BONES, BONES, HEAD_MESHES, SKINNED_MESHES
 from textures import dds_from_rgba
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -242,6 +242,8 @@ def main():
     if set(have) != set(want): raise SystemExit("bones differ from driver_skeleton: %s" % sorted(set(have) ^ set(want)))
     AW = np.array(arm.matrix_world, "f8")
     K = {n: C @ AW @ np.array(have[n].matrix_local, "f8") @ C for n, _ in BONES}   # kn5 空間の世界行列（列ベクトル規約）
+    for n in AC_AXES_BONES:
+        K[n][:3, :3] = np.eye(3)   # AC の首・頭の軸（driver_skeleton.AC_AXES_BONES、位置はそのまま）。以下の行列はすべてこの K から作る
     nodes = {}
     for name, parent in BONES:
         rel = np.linalg.inv(K[parent]) @ K[name] if parent else K[name]

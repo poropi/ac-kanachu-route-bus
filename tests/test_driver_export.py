@@ -6,7 +6,7 @@ import pytest
 
 import kn5io
 import paths
-from driver_skeleton import BONES, HEAD_MESHES, SKINNED_MESHES
+from driver_skeleton import AC_AXES_BONES, BONES, HEAD_MESHES, SKINNED_MESHES
 
 ROOT = Path(__file__).resolve().parent.parent
 pytestmark = pytest.mark.skipif(not (paths.BLENDER and Path(paths.BLENDER).exists()), reason="Blender not found")
@@ -324,8 +324,10 @@ def test_multi_material_head_split(kn5, multi):
 
 
 def test_single_material_unchanged(kn5, tmp_path):
-    """1 マテリアルだけの .blend は、マテリアルで分ける前のコード（bd94908）とバイト一致する。
-    使わない枠が増えても（面が 1 つの枠だけを使えば）同じ。"""
+    """1 マテリアルだけの .blend は、マテリアルで分ける前のコード（bd94908）と同じ kn5 になる。
+    使わない枠が増えても（面が 1 つの枠だけを使えば）バイト一致。
+    2026-11-26 から首・頭の骨の向きを AC の軸にした（AC_AXES_BONES）ので、bd94908 とはバイトでなく、ノードの木・マテリアル・テクスチャ・
+    骨で動く頂点のバイトが同じで、首・頭以外の骨の行列が同じ、レストの姿勢の全メッシュの頂点の世界位置が同じ（1e-6 m）ことを見る。"""
     k, out = kn5
     head = next(n for n in kn5io.walk(k.root) if n.name == "DRIVER:RIG_Head")
     assert [(c.cls, c.name) for c in head.children] == [(2, n) for n in HEAD_MESHES]
@@ -345,7 +347,23 @@ def test_single_material_unchanged(kn5, tmp_path):
     ref = tmp_path / "ref.kn5"
     r = blender(str(blend), "--python", str(old), "--", "--out", str(ref))
     assert ref.exists(), r.stdout + r.stderr
-    assert ref.read_bytes() == out.read_bytes()
+    import driver_posed
+    kr = kn5io.read(ref)
+    tree = lambda k_: [(n.cls, n.name, len(n.children)) for n in kn5io.walk(k_.root)]
+    assert tree(kr) == tree(k)
+    assert kr.materials == k.materials and [(t.name, t.data) for t in kr.textures] == [(t.name, t.data) for t in k.textures]
+    Wr, Wk = world_matrices(kr.root), world_matrices(k.root)
+    for b, _ in BONES:
+        if b in AC_AXES_BONES:
+            assert np.allclose(Wk[b][:3, :3], np.eye(3), atol=1e-6) and np.allclose(Wk[b][3], Wr[b][3], atol=1e-6), b
+        else:
+            assert np.array_equal(Wk[b], Wr[b]), b
+    for a, b_ in zip(skinned(kr).values(), skinned(k).values()):
+        assert a.vertices == b_.vertices and a.indices == b_.indices
+    pr, pk = driver_posed.posed_meshes(kr, Wr), driver_posed.posed_meshes(k, Wk)
+    assert set(pr) == set(pk)
+    for n in pr:
+        assert driver_posed.max_point_set_distance(pr[n], pk[n]) <= 1e-6, n
 
 
 def test_vertex_limit_is_60000(tmp_path):
