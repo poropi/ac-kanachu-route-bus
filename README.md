@@ -42,10 +42,11 @@
 ## 導入
 
 1. [Releases](../../releases) から `kanachu_route_bus.zip` を取ってきます。
-2. zip を `assettocorsa/` フォルダの中に展開します（Content Manager を使うなら、zip をそのままウィンドウにドロップしてもかまいません）。zip は AC の `content/` と同じ形で、次の 2 か所に入ります。
+2. zip を `assettocorsa/` フォルダの中に展開します。zip は AC の `content/` と同じ形で、次の 2 か所に入ります。
    - `content/cars/kanachu_route_bus/`：車
    - `content/driver/kanachu_driver.kn5`：運転士のモデル（車が使います）
-3. ゲームの車の選択で「Kanachu City Bus (Large Non-step)」を選びます。
+3. Content Manager で zip を入れた場合は、入れた後に `assettocorsa/content/driver/kanachu_driver.kn5` があるかを確かめてください。無ければ、zip の中の同じファイルを手でそこに置きます（Content Manager が運転士のモデルまで入れるかは、確かめていません）。
+4. ゲームの車の選択で「Kanachu City Bus (Large Non-step)」を選びます。
 
 ## 使い方
 
@@ -132,4 +133,4 @@ git に入っているファイルと配布する zip に、手元の絶対パ�
 
 License: MIT for the code and original assets (see LICENSE); names, logos and liveries are not covered.
 
-Install: extract the zip into your `assettocorsa/` folder (or drop it into Content Manager). It installs `content/cars/kanachu_route_bus` and the original driver model `content/driver/kanachu_driver.kn5` (MIT, no Kunos or third-party files). CSP is recommended (lights, real mirrors). AC's F1 chase camera uses one distance for all cars and ends up right behind a 10 m bus, so use **F6** cameras 4 and 5 for a rear view.
+Install: extract the zip into your `assettocorsa/` folder. It installs `content/cars/kanachu_route_bus` and the original driver model `content/driver/kanachu_driver.kn5` (MIT, no Kunos or third-party files). If you install with Content Manager, check that `assettocorsa/content/driver/kanachu_driver.kn5` exists afterwards and copy it there by hand if not (we have not verified that Content Manager installs the driver model). CSP is recommended (lights, real mirrors). AC's F1 chase camera uses one distance for all cars and ends up right behind a 10 m bus, so use **F6** cameras 4 and 5 for a rear view.
