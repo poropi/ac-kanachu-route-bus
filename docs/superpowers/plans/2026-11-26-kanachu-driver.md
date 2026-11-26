@@ -15,7 +15,7 @@
 - 骨の名前と親子は AC 標準の運転手と同じ（`tools/driver_skeleton.py` の `BONES` が唯一の定義。中身は `refs/kunos_driver/driver.kn5` の種類 1 のノード 57 個から名前と親だけを写す。行列・形・動きは写さない）。
 - 運転手の kn5 は `content/driver/kanachu_driver.kn5`。配布 zip は `content/cars/kanachu_route_bus/…` と `content/driver/kanachu_driver.kn5` の形。
 - `driver3d.ini`: `[MODEL] NAME=kanachu_driver`、`POSITION=0,0,0`、`[STEER_ANIMATION] NAME=steer.ksanim`、`[SHIFT_ANIMATION]` は残す、`[HIDE_OBJECT_0..2]` = `DRIVER:GEO_Driver_FACE`・`DRIVER:HAIR`・`DRIVER:CAP`。
-- 席の位置は `driver_base_pos.knh` の `DRIVER:RIG_Center` の行列で表す。座った姿勢の目は `DRIVER_EYE`（kn5 座標 −0.642, 1.985, 3.407）から 3 cm 以内。
+- 席の位置は `driver_base_pos.knh` の `DRIVER:RIG_Center` の行列で表す。**（2026-11-26 改訂）** 体はモデルの大きさのまま（拡大しない）、腰は座面、上体の前傾 ≤ 20°、肘の曲げ ≥ 15°、手はリムの真上から 60°〜100° で届くいちばん上、頭は `DRIVER_EYE` より下（目を合わせる条件は取りやめ）。
 - 手のひらの中心とハンドルのリムの管の中心線の距離 ≤ 0.02 m（ハンドルの回転角 0°、+90°、−90°）。
 - 1 メッシュ 60,000 頂点以下。骨で動く頂点の重みは 4 本まで、合計 1。
 - Kunos・他の MOD のファイルを配布物とリポジトリに入れない。`refs/`（イラスト・Kunos の運転手）は git 管理外。
