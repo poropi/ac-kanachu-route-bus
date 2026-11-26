@@ -78,4 +78,5 @@ M3 の合格条件「ハンドルと針が動く」：
 
 - エンジン音：ユーザーが耳で確かめて OK。
 - バックミラー：鏡面 5 枚を AC の鏡にした（`tools/kn5_mirrors.py`）。マテリアルを `mirror` にし、UV を面全体で 0〜1 にした。あわせて `data/mirrors.ini` と、CSP の本物の鏡 `[REAL_MIRROR_0〜4]` を書いた。ユーザー承認の試走 1 本（`circle_drift_20261126_125327`）で、左右とも後ろの景色が正しい向き（自車の車体が内側の縁、空が上）で映り、走ると流れることを確認した。CSP のログには「Normalizing mirrors UV」と、鏡 5 枚の分割（各 1 枚）が出ている。
+- オリジナルの運転士（計画 `docs/superpowers/plans/2026-11-26-kanachu-driver.md`）: 借り物の運転手を、神奈中の制服の運転士（astra が作った 3D モデル、骨 56 本）と自作の `driver3d.ini`・`driver_base_pos.knh`・`steer.ksanim` に置き換えた。ユーザー承認の試走 3 本（`circle_drift_20261126_151640`・`152034`・`152334`）で、落ちない、骨で体が曲がる（ksSkinnedMesh）、運転席の視点に帽子・髪が入らない、車外・車内から運転士が見える、0°・右 90°・左 90° で手がリムに乗る、を確かめた。ハンドルの回る向きとコマの向きは、窓の外からの絵で右手の位置が想定どおり動くことから合っていると判断した（絵からの判断）。曲がるときに頭が傾くのは AC の運転手の動き。借り物が原因だった `Variable type cannot be found` は消えた。配布の zip は `content/cars/…` と `content/driver/kanachu_driver.kn5` の形。
 
