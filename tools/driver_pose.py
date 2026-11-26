@@ -4,20 +4,17 @@
       --out build/driver/driver_base_pos.knh
 
 入力: 運転手 kn5 の種類 1 のノード（骨名 -> 親からの相対行列。kn5 と同じ行ベクトル規約: 世界 = 自分 @ 親、
-平行移動は 4 行目）、`cockpit.json`（kn5 座標）。出力: 骨名 -> 親からの相対行列 4x4（同じ規約）。
+平行移動は 4 行目）、`cockpit.json`（kn5 座標）。出力: 骨名 -> 親からの相対行列 4x4（同じ規約、拡大なしの剛体）。
 
-方法（体は骨の長さのまま、世界座標で解く。骨の向きには依存しない = 各骨の回転は「今の向きからの最小回転」で作る）:
- 1. 体を「腰（RIG_Center）を原点に置いた体の座標」で作る。上半身（RIG_Cest 以下）を背もたれの角度だけ後ろへ倒し、
-    頭は元の向き（正面）に戻す。目 = 頭の骨 + EYE_OFFSET（頭の骨から目までの、体の向きでの上・前の寸法）。
- 2. 腰を座面の上 SEAT_CLEARANCE に置き、体全体の一様な拡大率 s と腰の位置 t を、目が DRIVER_EYE に一致するように決める
-    （目の上下の高さは腰からの距離が s 倍になる）。s は RIG_Center の行列に入る（子の行列には入らない）。
-    s が 1 から大きくずれるのは、モデルの大きさがこの運転席の目の高さに合っていないということ。
- 3. 腕: リムの「真上から左右に grip_deg」の 2 点を、肩の位置が近い腕へ割り当てる（骨の名前の L/R は見ない）。
-    手のひらの中心 = 手首の骨と中指の付け根の中点。リムの中心線の点に手のひらを置く。
-    2 本の骨（上腕・前腕）の解析的 IK（余弦定理）、肘は下と外へ逃がす。手の向きは、指がリムの接線（運転手から遠ざかる向き）に沿うように。
- 4. 脚: 腰の位置に近いペダルへ足を割り当て（アクセルは右足の側）、足の母指球（足先の骨）をペダルの踏面に置く。
-    2 本の骨（腿・すね）の解析的 IK、膝は前と上へ逃がす。足首の骨は PEDAL_PITCH だけ爪先を下げる。
- 5. 世界行列から親からの相対行列を作る（拡大率は RIG_Center だけが持つ）。
+方法（世界座標で解く。骨の向きには依存しない = 各骨の回転は「今の向きからの最小回転」で作る）。2026-11-26 改訂:
+ 1. 体を腰（RIG_Center）を原点に置いた体の座標で作る。拡大はしない。上半身（RIG_Cest 以下）を前傾 phi（-6〜20°）させ、頭は正面のまま。
+ 2. 腰の骨は座面（seat_point の高さ）の上 SEAT_CLEARANCE、前後は seat_point から ±SEAT_HALF_DEPTH（座面の奥行の範囲）で動かす。
+ 3. 握り: リムの真上から grip_deg（60 = 10 時と 2 時）〜 GRIP_MAX_DEG の、左右対称の角度のうち、
+    両腕が肘を MIN_ELBOW_BEND 以上曲げたまま届くいちばん上を選ぶ。そのうち前傾と前後のずれが小さい姿勢を取る
+    （まず脚もペダルに届く姿勢から探し、無ければ脚を諦める）。どの角度も届かなければ、最大の前傾・前進・上限の角度で届く所まで。
+    手のひらの中心 = 手首の骨と中指の付け根の中点。指はリムの接線に沿わせる。左右は骨名でなく肩の位置の近さで割り当てる。
+ 4. 腕・脚は 2 本の骨の解析的 IK（余弦定理）。肘は下と外、膝は前と上へ逃がす。足の母指球（Foot）をペダルの踏面へ、爪先を PEDAL_PITCH 下げる。
+ 5. 世界行列から親からの相対行列を作る。
 """
 import argparse
 import json
@@ -37,8 +34,12 @@ for _n, _p in BONES:
 
 P = "DRIVER:"
 CENTER, CEST, HEAD = P + "RIG_Center", P + "RIG_Cest", P + "RIG_Head"
-SEAT_CLEARANCE = 0.08                        # 腰の骨が座面の上にある高さ (m)
-EYE_OFFSET = np.array([0.0, 0.06, 0.09])     # 頭の骨から目まで（体の座標: 上 +y、前 +z）(m)
+SEAT_CLEARANCE = 0.10                        # 腰の骨が座面の上にある高さ (m)
+SEAT_HALF_DEPTH = 0.24                       # 座面の奥行 ≈ 0.48 m の半分。腰は seat_point から前後にこの範囲で動く
+KNEE_MARGIN = 0.03                           # 膝とハンドルの柱の箱の間に空ける余裕 (m)
+MAX_LEAN = 20.0                              # 上体の前傾の上限 (度)
+MIN_ELBOW_BEND = 16.0                        # 肘の曲げの下限 (度)。試験の 15° に余裕を持たせる
+GRIP_MAX_DEG = 100                           # 握る角度の下限（真上から。60 が「10 時と 2 時」、大きいほど下）
 PEDAL_PITCH = np.radians(20.0)               # 足を踏面に載せるときの爪先の下げ角
 ARM_POLE = np.array([0.5, -1.0, 0.0])        # 肘の逃げ方向（下へ。外向きは肩の側で符号をそろえる）
 KNEE_POLE = np.array([0.0, 1.0, 1.0])        # 膝の逃げ方向（前と上）
@@ -143,15 +144,20 @@ def two_bone(S, T, u, l, pole):
     return S + a * e + h * unit(pd), S + d * e
 
 
-def _two_bone_chain(B, b1, b2, end, target, pole):
+def _two_bone_chain(B, b1, b2, end, target, pole, min_bend=0.0):
     """b1（付け根）・b2（関節）の 2 本で、end の骨の原点を target に置く（B を書き換える）。"""
+    target0 = target
     S = pos(B[b1])
     u = np.linalg.norm(pos(B[b2]) - S)
     l = np.linalg.norm(pos(B[end]) - pos(B[b2]))
+    if min_bend:     # 肘を伸ばしきらない: 届く距離を曲げ角 min_bend の分だけ短くする
+        dmax = np.sqrt(u * u + l * l - 2 * u * l * np.cos(np.radians(180.0 - min_bend)))
+        if np.linalg.norm(target - S) > dmax:
+            target = S + unit(target - S) * dmax
     E, T = two_bone(S, target, u, l, pole)
     _repose(B, b1, about(rot_between(pos(B[b2]) - S, E - S), S))
     _repose(B, b2, about(rot_between(pos(B[end]) - E, T - E), E))
-    return float(np.linalg.norm(target - T))     # 届かなかった距離
+    return float(np.linalg.norm(target0 - T))    # 届かなかった距離
 
 
 # ---------- 本体 ----------
@@ -171,96 +177,165 @@ def rim_points(cockpit, grip_deg, sign=None):
 
 
 def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
-    """report に dict を渡すと、拡大率 scale・手の実際の握り角 grip_deg・IK で届かなかった距離 arm_miss_m / leg_miss_m (m) を入れる。"""
+    """座った姿勢を解く。grip_deg は握りたいいちばん上の角度（真上から）。そこから GRIP_MAX_DEG まで、届くいちばん上を選ぶ。
+
+    report に dict を渡すと、grip_deg（選んだ握り角）・lean_deg（上体の前傾、前が正）・pelvis_slide_m（座面の中心からの前後のずれ、前が正）・
+    elbow_bend_deg（L, R）・hand_miss_m（L, R）・leg_miss_m（L, R）を入れる。
+    """
     L0 = {n: np.asarray(rest[n], dtype=float).T for n, _ in BONES}
     W0 = world_of(L0)
-    B = {n: M.copy() for n, M in W0.items()}
-    shift = pos(B[CENTER])
-    for n in B:
-        B[n][:3, 3] -= shift
-    # 1. 上半身を後ろへ倒し、頭は正面に戻す
-    th = np.radians(cockpit["backrest_angle_deg"])
-    Rl = rot_axis(np.array([1.0, 0.0, 0.0]), -th)
-    _repose(B, CEST, about(Rl, pos(B[CEST])))
-    _repose(B, HEAD, about(Rl.T, pos(B[HEAD])))
-    eye_b = pos(B[HEAD]) + EYE_OFFSET
-    # 2. 拡大率 s と腰の位置 t
-    eye, seat = np.array(cockpit["eye"]), np.array(cockpit["seat_point"])
-    hip_y = seat[1] + SEAT_CLEARANCE
-    s = (eye[1] - hip_y) / eye_b[1]
-    t = np.array([eye[0] - s * eye_b[0], hip_y, eye[2] - s * eye_b[2]])
-
-    def body(p):
-        return (np.asarray(p) - t) / s
-
-    # 3. 腕
-    c_b = body(cockpit["wheel_center"])
+    B0 = {n: M.copy() for n, M in W0.items()}
+    shift = pos(B0[CENTER])
+    for n in B0:
+        B0[n][:3, 3] -= shift                      # 腰（RIG_Center）を原点に
+    seat = np.array(cockpit["seat_point"])
+    c_w = np.array(cockpit["wheel_center"])
     axis = unit(np.array(cockpit["wheel_axis"]))
-    sh = {a: pos(B[side_bones(a)[0]]) for a in "LR"}
-    pts = [body(p) for p in rim_points(cockpit, grip_deg)[0]]
-    straight = np.linalg.norm(sh["L"] - pts[0]) + np.linalg.norm(sh["R"] - pts[1])
-    swapped = np.linalg.norm(sh["L"] - pts[1]) + np.linalg.norm(sh["R"] - pts[0])
-    sign = {"L": 1.0, "R": -1.0} if straight <= swapped else {"L": -1.0, "R": 1.0}
-    got = {}
+    hip_off = pos(B0[P + "RIG_Hips"])[1]
+    ty = seat[1] + SEAT_CLEARANCE - hip_off        # 腰の骨が座面の上 SEAT_CLEARANCE
+    ped_w = {"accel": np.array(cockpit["pedal_accel"]), "brake": np.array(cockpit["pedal_brake"])}
+
+    cb = cockpit.get("column_box")
+    col_box = None if cb is None else (np.array(cb["min"]) - KNEE_MARGIN, np.array(cb["max"]) + KNEE_MARGIN)
+
+    def leaned(phi):
+        B = {n: M.copy() for n, M in B0.items()}
+        R = rot_axis(np.array([1.0, 0.0, 0.0]), np.radians(phi))      # +x まわりの正 = 上体が前へ
+        _repose(B, CEST, about(R, pos(B[CEST])))
+        _repose(B, HEAD, about(R.T, pos(B[HEAD])))                    # 頭は正面のまま
+        return B
+
+    def grip(B, t, a, sign, g):
+        """リムの g 度の点に a 側の手のひらを置くときの (点, 手の回転, 手首の目標)。体座標。"""
+        arm, fore, hand, middle = side_bones(a)
+        c_b = c_w - t
+        pt = rim_points(cockpit, g, sign)[0][0] - t
+        radial = unit(pt - c_b - np.dot(pt - c_b, axis) * axis)
+        tang = np.cross(axis, radial)
+        if np.dot(tang, pt - pos(B[arm])) < 0:
+            tang = -tang
+        finger = pos(B[middle]) - pos(B[hand])
+        Rh = rot_between(finger, tang)                 # 指をリムの接線へ
+        return pt, Rh, pt - Rh @ (finger / 2)
+
+    def arm_geom(B, a):
+        arm, fore, hand, _ = side_bones(a)
+        u, l = np.linalg.norm(pos(B[fore]) - pos(B[arm])), np.linalg.norm(pos(B[hand]) - pos(B[fore]))
+        dmax = np.sqrt(u * u + l * l - 2 * u * l * np.cos(np.radians(180.0 - MIN_ELBOW_BEND)))
+        return u, l, dmax
+
+    def leg_targets(B, t):
+        hips = {a: pos(B[P + "RIG_Leg_" + a]) for a in "LR"}
+        pb = {k: v - t for k, v in ped_w.items()}
+        d1 = np.linalg.norm(hips["L"] - pb["accel"]) + np.linalg.norm(hips["R"] - pb["brake"])
+        d2 = np.linalg.norm(hips["L"] - pb["brake"]) + np.linalg.norm(hips["R"] - pb["accel"])
+        ped = {"L": pb["accel"], "R": pb["brake"]} if d1 <= d2 else {"L": pb["brake"], "R": pb["accel"]}
+        Rp = rot_axis(np.array([1.0, 0.0, 0.0]), PEDAL_PITCH)    # 爪先を下げる（+x まわりの正は +z 側が下）
+        res = {}
+        for a in "LR":
+            leg, shin, hill, foot = (P + "RIG_Leg_" + a, P + "RIG_Shin_" + a, P + "RIG_Hill_" + a, P + "RIG_Foot_" + a)
+            res[a] = (ped[a] - Rp @ (pos(B[foot]) - pos(B[hill])), Rp)
+        return res
+
+    def feasible(B, t, g, signs, with_legs):
+        for a in "LR":
+            arm = side_bones(a)[0]
+            u, l, dmax = arm_geom(B, a)
+            if np.linalg.norm(grip(B, t, a, signs[a], g)[2] - pos(B[arm])) > dmax:
+                return False
+        if with_legs:
+            for a, (T, _) in leg_targets(B, t).items():
+                leg, shin, hill = P + "RIG_Leg_" + a, P + "RIG_Shin_" + a, P + "RIG_Hill_" + a
+                u = np.linalg.norm(pos(B[shin]) - pos(B[leg]))
+                l = np.linalg.norm(pos(B[hill]) - pos(B[shin]))
+                if np.linalg.norm(T - pos(B[leg])) > u + l - 0.005:
+                    return False
+                if col_box is not None:      # 膝がハンドルの柱の箱に入らない
+                    knee = two_bone(pos(B[leg]), T, u, l, KNEE_POLE)[0] + t
+                    if np.all(knee >= col_box[0]) and np.all(knee <= col_box[1]):
+                        return False
+        return True
+
+    phis = np.arange(-6.0, MAX_LEAN + 0.01, 1.0)
+    slides = np.arange(-SEAT_HALF_DEPTH, SEAT_HALF_DEPTH + 0.001, 0.02)
+    cache = {float(p): leaned(p) for p in phis}
+    best = None
+    for with_legs in (True, False):
+        for g in np.arange(float(grip_deg), GRIP_MAX_DEG + 0.01, 1.0):
+            cands = []
+            for phi, B in cache.items():
+                for d in slides:
+                    t = np.array([seat[0], ty, seat[2] + d])
+                    # 左右: 肩が近いほうの点へ
+                    sh = {a: pos(B[side_bones(a)[0]]) + t for a in "LR"}
+                    pl, pr = (rim_points(cockpit, g, sg)[0][0] for sg in (1.0, -1.0))
+                    sgn = {"L": 1.0, "R": -1.0} if (np.linalg.norm(sh["L"] - pl) + np.linalg.norm(sh["R"] - pr)
+                                                   <= np.linalg.norm(sh["L"] - pr) + np.linalg.norm(sh["R"] - pl)) \
+                        else {"L": -1.0, "R": 1.0}
+                    if feasible(B, t, g, sgn, with_legs):
+                        cands.append(((phi / MAX_LEAN) ** 2 + (d / SEAT_HALF_DEPTH) ** 2, phi, d, g, sgn))
+            if cands:
+                best = min(cands, key=lambda c: c[0])
+                break
+        if best:
+            break
+    if best is None:    # どの角度でも届かない: 最も前傾して前へ出て、上限の角度で届く所まで
+        phi, d, g = MAX_LEAN, SEAT_HALF_DEPTH, float(GRIP_MAX_DEG)
+        t = np.array([seat[0], ty, seat[2] + d])
+        B = cache[float(phi)]
+        sh = {a: pos(B[side_bones(a)[0]]) + t for a in "LR"}
+        pl, pr = (rim_points(cockpit, g, sg)[0][0] for sg in (1.0, -1.0))
+        sgn = {"L": 1.0, "R": -1.0} if (np.linalg.norm(sh["L"] - pl) <= np.linalg.norm(sh["L"] - pr)) else {"L": -1.0, "R": 1.0}
+        best = (0, phi, d, g, sgn)
+    _, phi, d, g, sgn = best
+    t = np.array([seat[0], ty, seat[2] + d])
+    B = {n: M.copy() for n, M in cache[float(phi)].items()}
+    rep = {"grip_deg": float(g), "lean_deg": float(phi), "pelvis_slide_m": float(d)}
+    # 腕
     for a in "LR":
         arm, fore, hand, middle = side_bones(a)
-        reach = np.linalg.norm(pos(B[fore]) - pos(B[arm])) + np.linalg.norm(pos(B[hand]) - pos(B[fore]))
-        finger = pos(B[middle]) - pos(B[hand])
-        palm0 = finger / 2
-        pole = ARM_POLE * np.array([np.sign(sh[a][0] - c_b[0]) or 1.0, 1.0, 1.0])
-
-        def at(g):
-            """リムの g 度（真上から、sign の側）の点に手のひらを置くときの (点, 手の回転, 手首の目標)。"""
-            pt = body(rim_points(cockpit, g, sign[a])[0][0])
-            radial = unit(pt - c_b - np.dot(pt - c_b, axis) * axis)
-            tang = np.cross(axis, radial)
-            if np.dot(tang, pt - sh[a]) < 0:
-                tang = -tang
-            Rh = rot_between(finger, tang)               # 指をリムの接線へ
-            return pt, Rh, pt - Rh @ palm0
-
-        g = float(grip_deg)
-        while g < 160 and np.linalg.norm(at(g)[2] - sh[a]) > reach - 0.01:
-            g += 1.0          # 届かなければリムに沿って運転手に近い側へずらす
-        got[a] = g
-        pt, Rh, T = at(g)
+        _, Rh, T = grip(B, t, a, sgn[a], g)
+        pole = ARM_POLE * np.array([np.sign(pos(B[arm])[0] + t[0] - c_w[0]) or 1.0, 1.0, 1.0])
         R_lean = B[hand][:3, :3].copy()
-        miss = _two_bone_chain(B, arm, fore, hand, T, pole)
+        miss = _two_bone_chain(B, arm, fore, hand, T, pole, MIN_ELBOW_BEND)
         _repose(B, hand, about(Rh @ R_lean @ B[hand][:3, :3].T, pos(B[hand])))   # 手の向きを絶対値で決める
-        if report is not None:
-            report.setdefault("arm_miss_m", {})[a] = miss * s
-    if report is not None:
-        report["grip_deg"] = got
-    # 4. 脚
-    pedals = {"accel": body(cockpit["pedal_accel"]), "brake": body(cockpit["pedal_brake"])}
-    hips = {a: pos(B[P + "RIG_Leg_" + a]) for a in "LR"}
-    d1 = np.linalg.norm(hips["L"] - pedals["accel"]) + np.linalg.norm(hips["R"] - pedals["brake"])
-    d2 = np.linalg.norm(hips["L"] - pedals["brake"]) + np.linalg.norm(hips["R"] - pedals["accel"])
-    ped = {"L": pedals["accel"], "R": pedals["brake"]} if d1 <= d2 else {"L": pedals["brake"], "R": pedals["accel"]}
-    for a in "LR":
-        leg, shin, hill, foot = (P + "RIG_Leg_" + a, P + "RIG_Shin_" + a, P + "RIG_Hill_" + a, P + "RIG_Foot_" + a)
-        lat = np.array([1.0, 0.0, 0.0])
-        Rp = rot_axis(lat, PEDAL_PITCH)                # +x まわりの正の回転は +z（前）側を下へ
-        vec = Rp @ (pos(B[foot]) - pos(B[hill]))       # 足首 -> 母指球 を傾けた後の向き
+        rep.setdefault("hand_miss_m", {})[a] = float(miss)
+    # 脚
+    for a, (T, Rp) in leg_targets(B, t).items():
+        leg, shin, hill = P + "RIG_Leg_" + a, P + "RIG_Shin_" + a, P + "RIG_Hill_" + a
         R_lean = B[hill][:3, :3].copy()
-        miss = _two_bone_chain(B, leg, shin, hill, ped[a] - vec, KNEE_POLE)
-        if report is not None:
-            report.setdefault("leg_miss_m", {})[a] = miss * s
+        miss = _two_bone_chain(B, leg, shin, hill, T, KNEE_POLE)
         _repose(B, hill, about(Rp @ R_lean @ B[hill][:3, :3].T, pos(B[hill])))
-    if report is not None:
-        report["scale"] = float(s)
-    # 5. 世界行列 -> 親からの相対行列。拡大率と腰の位置は RIG_Center だけが持つ
+        rep.setdefault("leg_miss_m", {})[a] = float(miss)
     Wf = {}
     for n, _ in BONES:
         M = B[n].copy()
-        M[:3, :3] *= s
-        M[:3, 3] = t + s * B[n][:3, 3]
+        M[:3, 3] += t                               # 剛体の動きだけ（拡大はしない）
         Wf[n] = M
     Wf["DRIVER:DRIVER"] = W0["DRIVER:DRIVER"]
     out = {}
     for n, p in BONES:
         out[n] = (L0[n] if p is None else np.linalg.inv(Wf[p]) @ Wf[n]).T.copy()
+    if report is not None:
+        report.update(rep)
+        report["elbow_bend_deg"] = elbow_bends(fk(out))
     return out
+
+
+def elbow_bends(W):
+    """肘の曲げ（伸ばしきりを 0° とする）。W は世界行列（行ベクトル規約）。"""
+    res = {}
+    for a in "LR":
+        arm, fore, hand, _ = side_bones(a)
+        v1, v2 = W[arm][3, :3] - W[fore][3, :3], W[hand][3, :3] - W[fore][3, :3]
+        res[a] = 180.0 - float(np.degrees(np.arccos(np.clip(np.dot(v1, v2) / np.linalg.norm(v1) / np.linalg.norm(v2), -1, 1))))
+    return res
+
+
+def torso_lean_deg(W):
+    """腰から首への向きの、鉛直からの前傾（前が正）。"""
+    v = W[P + "RIG_Nek"][3, :3] - W[P + "RIG_Hips"][3, :3]
+    return float(np.degrees(np.arctan2(v[2], v[1])))
 
 
 def to_knh(local):
@@ -282,14 +357,6 @@ def rest_from_kn5(path):
     return {n: got[n] for n, _ in BONES}
 
 
-def eye_position(local, rest):
-    """解いた姿勢での目の世界位置。EYE_OFFSET は頭の骨の正面の向きで測る（rest の頭の骨の向きで頭の座標へ直す）。"""
-    Wr = world_of({n: np.asarray(rest[n], dtype=float).T for n, _ in BONES})
-    off_local = Wr[HEAD][:3, :3].T @ EYE_OFFSET
-    Wp = world_of({n: np.asarray(local[n], dtype=float).T for n, _ in BONES})
-    return (Wp[HEAD] @ np.append(off_local, 1.0))[:3]
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--kn5", required=True)
@@ -298,10 +365,11 @@ def main():
     ap.add_argument("--grip-deg", type=float, default=60.0)
     a = ap.parse_args()
     rest = rest_from_kn5(a.kn5)
-    local = solve_seated(rest, json.load(open(a.cockpit, encoding="utf-8")), a.grip_deg)
+    rep = {}
+    local = solve_seated(rest, json.load(open(a.cockpit, encoding="utf-8")), a.grip_deg, rep)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     knhmod.write(to_knh(local), a.out)
-    print("wrote", a.out, "scale %.3f" % np.linalg.norm(np.asarray(local[CENTER])[0, :3]))
+    print("wrote", a.out, json.dumps(rep, default=float))
 
 
 if __name__ == "__main__":

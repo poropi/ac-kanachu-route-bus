@@ -16,14 +16,29 @@ COCKPIT = json.loads((ROOT / "design/driver/cockpit.json").read_text(encoding="u
 pytestmark = pytest.mark.skipif(not (paths.BLENDER and Path(paths.BLENDER).exists()), reason="Blender not found")
 
 
-@pytest.fixture(scope="module")
-def solved(tmp_path_factory):
-    tmp = tmp_path_factory.mktemp("pose")
-    blend, kn5 = tmp / "mini.blend", tmp / "mini.kn5"
-    for args in (["--python", str(ROOT / "tests/fixtures/make_mini_driver.py"), "--", str(blend)],
-                 [str(blend), "--python", str(ROOT / "tools/driver_to_kn5.py"), "--", "--out", str(kn5)]):
-        subprocess.run([paths.BLENDER, "-b", *args], capture_output=True, text=True)
+REAL_BLEND = ROOT / "design/driver/kanachu_driver.blend"
+
+
+def _export(tmp, blend):
+    kn5 = tmp / (blend.stem + ".kn5")
+    subprocess.run([paths.BLENDER, "-b", str(blend), "--python", str(ROOT / "tools/driver_to_kn5.py"), "--", "--out", str(kn5)],
+                   capture_output=True, text=True)
     assert kn5.exists()
+    return kn5
+
+
+@pytest.fixture(scope="module", params=["fixture", "real"])
+def solved(request, tmp_path_factory):
+    tmp = tmp_path_factory.mktemp("pose")
+    if request.param == "real":
+        if not REAL_BLEND.exists():
+            pytest.skip("本物のモデルが無い")
+        kn5 = _export(tmp, REAL_BLEND)
+    else:
+        blend = tmp / "mini.blend"
+        subprocess.run([paths.BLENDER, "-b", "--python", str(ROOT / "tests/fixtures/make_mini_driver.py"), "--", str(blend)],
+                       capture_output=True, text=True)
+        kn5 = _export(tmp, blend)
     rest = dp.rest_from_kn5(kn5)
     report = {}
     local = dp.solve_seated(rest, COCKPIT, report=report)
@@ -38,38 +53,46 @@ def dist_to_rim_circle(p):
     return float(np.hypot(np.linalg.norm(d - off * n) - r, off))
 
 
-def test_seated_eye_and_hands(solved):
+def test_seated_pose_constraints(solved):
     rest, local, report, _ = solved
     W = dp.fk(local)
-    eye = np.linalg.norm(dp.eye_position(local, rest) - COCKPIT["eye"])
+    # 拡大なし: どの行列も 3x3 が直交（行列式 +1）
+    for n, m in local.items():
+        R = np.asarray(m)[:3, :3]
+        assert np.allclose(R @ R.T, np.eye(3), atol=1e-4), n
+        assert np.linalg.det(R) == pytest.approx(1.0, abs=1e-4), n
+    # 腰: 座面の範囲（前後 ±0.24、左右も座面の中）で、座面の上 0.05〜0.20
+    hips = W["DRIVER:RIG_Hips"][3, :3]
+    seat = np.array(COCKPIT["seat_point"])
+    assert 0.05 <= hips[1] - seat[1] <= 0.20
+    assert abs(hips[2] - seat[2]) <= 0.24 + 1e-6 and abs(hips[0] - seat[0]) <= 0.25
+    lean = dp.torso_lean_deg(W)
+    assert lean <= 20.0, lean
+    bends = dp.elbow_bends(W)
+    assert min(bends.values()) >= 15.0, bends
+    head = W["DRIVER:RIG_Head"][3, :3]
+    assert head[1] < COCKPIT["eye"][1]
     palms = {a: dp.palm_center(W, a) for a in "LR"}
     hands = {a: dist_to_rim_circle(palms[a]) for a in "LR"}
-    print("目の距離 %.4f m、手のひら-リム L %.4f R %.4f m、拡大率 %.3f、握り角 %s"
-          % (eye, hands["L"], hands["R"], report["scale"], report["grip_deg"]))
-    assert eye <= 0.03
-    assert max(hands.values()) <= 0.02
-    assert np.linalg.norm(palms["L"] - palms["R"]) > 0.15      # 両手が同じ点に重ならない（左右が別の側）
+    assert max(hands.values()) <= 0.02, hands
+    assert 60.0 <= report["grip_deg"] <= 100.0
+    assert np.linalg.norm(palms["L"] - palms["R"]) > 0.15      # 両手が同じ点に重ならない
+    print("握り角 %.0f 度、前傾（腰から首）%.1f 度（解の前傾 %.0f 度）、腰の前後のずれ %+.2f m、肘の曲げ L %.1f R %.1f 度、"
+          "手のひら-リム L %.4f R %.4f m、頭の高さ %.3f（目 %.3f）"
+          % (report["grip_deg"], lean, report["lean_deg"], report["pelvis_slide_m"], bends["L"], bends["R"],
+             hands["L"], hands["R"], head[1], COCKPIT["eye"][1]))
 
 
-def test_seated_no_intersection_proxy(solved):
-    rest, local, report, _ = solved
-    W = dp.fk(local)
-    hips = W["DRIVER:RIG_Hips"][3, :3]
-    h = hips[1] - COCKPIT["seat_point"][1]
-    assert 0.05 <= h <= 0.20, h
-    box = COCKPIT["column_box"]
-    lo, hi = np.array(box["min"]), np.array(box["max"])
-    for a in "LR":
-        knee = W["DRIVER:RIG_Shin_" + a][3, :3]
-        assert not (np.all(knee >= lo) and np.all(knee <= hi)), (a, knee)
-
-
-def test_feet_on_pedals_one_each(solved):
+def test_knee_outside_column_and_feet_on_pedals(solved):
     _, local, _, _ = solved
     W = dp.fk(local)
+    box = COCKPIT["column_box"]
+    lo, hi = np.array(box["min"]), np.array(box["max"])
     ped = {"accel": np.array(COCKPIT["pedal_accel"]), "brake": np.array(COCKPIT["pedal_brake"])}
     hit = set()
     for a in "LR":
+        knee = W["DRIVER:RIG_Shin_" + a][3, :3]
+        assert not (np.all(knee >= lo) and np.all(knee <= hi)), (a, knee)
         ball = W["DRIVER:RIG_Foot_" + a][3, :3]
         name, d = min(((k, np.linalg.norm(ball - v)) for k, v in ped.items()), key=lambda kv: kv[1])
         assert d <= 0.02, (a, name, d)
@@ -77,14 +100,8 @@ def test_feet_on_pedals_one_each(solved):
     assert hit == {"accel", "brake"}
 
 
-def test_scale_only_in_center_and_knh_roundtrip(solved, tmp_path):
-    rest, local, report, _ = solved
-    for n, p in BONES:
-        s = np.linalg.norm(np.asarray(local[n])[0, :3])
-        if n == dp.CENTER:
-            assert s == pytest.approx(report["scale"], rel=1e-6)
-        elif p is not None:
-            assert s == pytest.approx(1.0, abs=1e-5), n      # 拡大率は RIG_Center だけが持つ
+def test_knh_roundtrip(solved, tmp_path):
+    _, local, _, _ = solved
     out = tmp_path / "driver_base_pos.knh"
     knh.write(dp.to_knh(local), out)
     nodes = {k.name: k for k in knh.walk(knh.read(out))}
