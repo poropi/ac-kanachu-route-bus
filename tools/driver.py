@@ -35,11 +35,19 @@ HIDE = ("DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP", "DRIVER:BODY_SUB3
 # 頭だけ隠すと下を向いたときに首の切り口が真ん中に写る（2026-11-26 試走の eyedown、ユーザー判断で隠す）。上着の背中は残る
 
 
+# 運転士の頭の G による動き（AC 本体が driver3d.ini の [HEAD_MOVEMENT] を読む。書かないと既定の値で首が左右に傾く）。
+# ユーザー判断（2026-11-26）: 首の左右の傾き（ROLL）とうなずき（PITCH）は止め、カーブの方へ顔を向ける動き（YAW）だけ少し残す。
+#   角度は MAX_G の G で最大になり、それより小さい G では比例して小さくなる。路線バスの横 G は 0.3 G 前後なので、
+#   MAX_G=0.3 で YAW 5° にする（普通のカーブで 5° ほど顔を向ける）。FILTER は G のならし（0 は不可）。
+HEAD = (("FILTER", 0.15), ("MAX_G", 0.3), ("ROLL_MAX_DEG", 0), ("PITCH_MAX_DEG", 0), ("YAW_MAX_DEG", 5))
+
+
 def driver3d_ini(lock_deg: float = LOCK_DEG) -> str:
     lock = ("%g" % lock_deg)
     lines = ["[MODEL]", "NAME=" + DRIVER_NAME, "POSITION=0,0,0", "",
              "[STEER_ANIMATION]", "NAME=steer.ksanim", "LOCK=" + lock, "",
              "[SHIFT_ANIMATION]"] + ["%s=%s" % kv for kv in SHIFT] + [""]
+    lines += ["[HEAD_MOVEMENT]"] + ["%s=%g" % kv for kv in HEAD] + [""]
     for i, n in enumerate(HIDE):
         lines += ["[HIDE_OBJECT_%d]" % i, "NAME=" + n, ""]
     return "\n".join(lines)
