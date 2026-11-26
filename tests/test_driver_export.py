@@ -180,3 +180,22 @@ def test_shaders_by_node_type(kn5):
     for i in used[3]:   # Kunos の骨で動くマテリアルと同じ基本の ks* と bones を持つ
         props = {p[0] for p in k.materials[i].props}
         assert {"bones", "ksAmbient", "ksDiffuse", "ksSpecular", "ksSpecularEXP", "ksEmissive", "ksAlphaRef"} <= props
+
+
+def test_skinned_material_complete(kn5):
+    """ksSkinnedMesh の定義（cbBones・cbMaterial・cbCarPaint とテクスチャ 4 枠）を全部埋める。共有テクスチャは 1 回ずつ。"""
+    k, _ = kn5
+    used = {n.matid for n in kn5io.walk(k.root) if n.cls == 3}
+    names = [t.name for t in k.textures]
+    shared = ["driver_flat_nm.dds", "driver_maps.dds", "driver_detail.dds"]
+    assert all(names.count(s) == 1 for s in shared)
+    want = ["bones", "ksAmbient", "ksDiffuse", "ksSpecular", "ksSpecularEXP", "ksEmissive", "ksAlphaRef", "fresnelC",
+            "fresnelEXP", "fresnelMaxLevel", "nmObjectSpace", "isAdditive", "useDetail", "detailUVMultiplier", "boh"]
+    for i in used:
+        m = k.materials[i]
+        assert [p[0] for p in m.props] == want
+        assert [t[0] for t in m.tex] == ["txDiffuse", "txNormal", "txMaps", "txDetail"]
+        assert [t[1] for t in m.tex] == [0, 1, 2, 3]
+        assert [t[2] for t in m.tex][1:] == shared and m.tex[0][2] in names
+    for i in {n.matid for n in kn5io.walk(k.root) if n.cls == 2}:   # 頭の固定メッシュは変えない
+        assert [t[0] for t in k.materials[i].tex] == ["txDiffuse"]

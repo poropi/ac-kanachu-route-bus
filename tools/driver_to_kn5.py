@@ -50,6 +50,20 @@ def material_texture(m):
         arr = np.broadcast_to(np.clip(np.array(m.diffuse_color) * 255 + 0.5, 0, 255).astype(np.uint8), (4, 4, 4))
     return dds_from_rgba(arr)
 
+# 骨で動くマテリアル（ksSkinnedMesh）が使う共有テクスチャ（kn5 に 1 回ずつ埋める）。
+# txMaps は Kunos の服（2016_Suit_MAP）の値の範囲（R 約 70、G 約 7、B 約 35。どれも低い）に合わせた、つや消し・非金属の単色。
+SHARED = {"driver_flat_nm.dds": (128, 128, 255, 255), "driver_maps.dds": (64, 8, 32, 255),
+          "driver_detail.dds": (255, 255, 255, 255)}
+# 骨で動くマテリアルの props。ksSkinnedMesh の定義（cbBones・cbMaterial・cbCarPaint）の全部。Kunos の骨で動くマテリアルにも bones がある
+SKINNED_PROPS = [("bones", 0.0), ("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
+                 ("ksEmissive", 0.0), ("ksAlphaRef", 0.0), ("fresnelC", 0.0), ("fresnelEXP", 1.0), ("fresnelMaxLevel", 0.0),
+                 ("nmObjectSpace", 0.0), ("isAdditive", 0.0), ("useDetail", 0.0), ("detailUVMultiplier", 1.0), ("boh", 0.0)]
+
+def shared_texture(name):
+    if name not in texs:
+        texs[name] = kn5io.Tex(1, name, dds_from_rgba(np.broadcast_to(np.array(SHARED[name], np.uint8), (4, 4, 4))))
+    return name
+
 def matid(ob, shader):
     m = ob.active_material
     if m is None: raise SystemExit("object %s has no material" % ob.name)
@@ -57,10 +71,16 @@ def matid(ob, shader):
     if key not in mat_index:
         tname = m.name + ".dds"
         if tname not in texs: texs[tname] = kn5io.Tex(1, tname, material_texture(m))
-        props = ([("bones", 0.0)] if shader != "ksPerPixel" else []) + [("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
-                 ("ksEmissive", 0.0), ("ksAlphaRef", 0.0)]   # Kunos の骨で動くマテリアルも bones と基本の ks* を持つ
+        if shader == "ksPerPixel":
+            props = [("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
+                     ("ksEmissive", 0.0), ("ksAlphaRef", 0.0)]
+            tex = [("txDiffuse", 0, tname)]
+        else:
+            props = SKINNED_PROPS
+            tex = [("txDiffuse", 0, tname), ("txNormal", 1, shared_texture("driver_flat_nm.dds")),
+                   ("txMaps", 2, shared_texture("driver_maps.dds")), ("txDetail", 3, shared_texture("driver_detail.dds"))]
         name = m.name if shader == "ksPerPixel" else m.name + "_skinned"
-        mats.append(kn5io.Mat(name, shader, 0, 0, 0, [(p, v, bytes(36)) for p, v in props], [("txDiffuse", 0, tname)]))
+        mats.append(kn5io.Mat(name, shader, 0, 0, 0, [(p, v, bytes(36)) for p, v in props], tex))
         mat_index[key] = len(mats) - 1
     return mat_index[key]
 
