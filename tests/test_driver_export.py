@@ -346,3 +346,16 @@ def test_single_material_unchanged(kn5, tmp_path):
     r = blender(str(blend), "--python", str(old), "--", "--out", str(ref))
     assert ref.exists(), r.stdout + r.stderr
     assert ref.read_bytes() == out.read_bytes()
+
+
+def test_vertex_limit_is_60000(tmp_path):
+    code = ("import sys, numpy as np; sys.path.insert(0, %r); import driver_to_kn5 as d, kn5io\n"
+            "assert d.MAX_VERTICES == 60000\n"
+            "def run(k):\n"
+            "    rec = np.zeros((k, 15), 'f4'); rec[:, 0] = np.arange(k); n = kn5io.Node(2, 'M', 1)\n"
+            "    d.finish(n, rec, np.arange(-(-k // 3) * 3) %% k); return len(n.vertices) // 60\n"
+            "assert run(60000) == 60000\n"
+            "try:\n    run(60001)\n    print('NOERR')\nexcept SystemExit as e:\n    print('LIMIT', e)\n") % str(ROOT / "tools")
+    script = tmp_path / "lim.py"; script.write_text(code)
+    r = blender("--python", str(script))
+    assert "LIMIT" in r.stdout and "NOERR" not in r.stdout and "60000" in r.stdout, r.stdout + r.stderr

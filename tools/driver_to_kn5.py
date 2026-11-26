@@ -175,12 +175,14 @@ def weights_of(ob, me, bone_names):
     if bad: raise SystemExit("%s has %d vertices with no bone weight" % (ob.name, bad))
     return out
 
+MAX_VERTICES = 60000   # 1 メッシュの頂点数の上限（Global Constraint。u16 索引の 65535 より小さい）
+
 def finish(n, rec, tri, key_extra=None):
     """ループごとのレコード rec と三角形から、同じ角を統合した頂点列と索引を n に入れる。"""
     R = rec[tri]; key = R.copy(); key[:, 3:6] = np.round(key[:, 3:6], 3)   # 法線は 1e-3 に丸めて統合（blend_to_kn5 と同じ）
     _, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
     uniq = R[first]
-    if len(uniq) > 65535: raise SystemExit("%s has %d vertices > 65535 (u16 index)" % (n.name, len(uniq)))
+    if len(uniq) > MAX_VERTICES: raise SystemExit("%s has %d vertices > %d (Global Constraint)" % (n.name, len(uniq), MAX_VERTICES))
     n.vertices = uniq.astype("<f4").tobytes(); n.indices = inv.ravel().tolist()
     return uniq
 
