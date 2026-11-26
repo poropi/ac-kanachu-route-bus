@@ -1,7 +1,7 @@
 """ハンドルを回すときの腕の動き（steer.ksanim）を作る。
 
   python3 tools/driver_steer.py --kn5 build/driver/kanachu_driver.kn5 --cockpit design/driver/cockpit.json \
-      --lock 180 --out build/driver/steer.ksanim
+      --lock 90 --out build/driver/steer.ksanim
 
 座った姿勢（driver_pose.solve_seated）を土台に、コマごとにハンドルの回転角 θ（運転手から見て時計回りが正 = 右へ切る）を決め、
 座った姿勢で握っている手を、ハンドルの軸（wheel_center を通り wheel_axis の向き）まわりに θ 回した位置・向きへ置く。
@@ -9,7 +9,7 @@
 腕・手・指（RIG_Arm_* の子孫）以外の骨は全コマで座った姿勢のまま。
 
 コマ i の角度: 借り物の steer.ksanim を読んだ結果、コマが増えると手は運転手から見て反時計回りに回っていた
-（右手が 3 時から上へ）ので、θ_i = +lock/2 − lock·i/(frames−1)（コマ 0 = 時計回りいっぱい）。ゲームでの向きは Task 8 で確かめる。
+（右手が 3 時から上へ）ので、θ_i = +lock − 2·lock·i/(frames−1)（lock = 片側の角度。コマ 0 = 時計回りいっぱい、最後 = 反時計回りいっぱい）。ゲームでの向きは Task 8 で確かめる。
 手ごとに、座った握り点を回して届く（手がリムから 0.02 m 以内、肘の曲げ 15° 以上）区間を 1° 刻みで調べ、
 θ がその外に出たら、その手は届く端のリムの上で止まる（リムの上を滑る。手は常にリムの上）。胴・鎖骨は動かさない。
 """
@@ -74,18 +74,18 @@ def grip_arcs(seated, cockpit, step=1.0):
     return res
 
 
-def grip_angles(seated, cockpit, lock_deg=180.0, frames=101):
+def grip_angles(seated, cockpit, lock_deg=90.0, frames=101):
     """手 -> コマごとの握り角（座った握り点から軸まわりに回した度、時計回り正）。届く区間の端で止まる（リムの上を滑る）。"""
     arcs = grip_arcs(seated, cockpit)
     out = {a: [] for a in "LR"}
     for i in range(frames):
-        theta = FRAME0_SIGN * (lock_deg / 2 - lock_deg * i / (frames - 1))
+        theta = FRAME0_SIGN * (lock_deg - 2 * lock_deg * i / (frames - 1))
         for a in "LR":
             out[a].append(float(np.clip(theta, *arcs[a])))
     return out
 
 
-def build_steer(seated, rest, cockpit, lock_deg=180.0, frames=101):
+def build_steer(seated, rest, cockpit, lock_deg=90.0, frames=101):
     """骨名 -> コマ列（ksanim.Frame）。BONES の 56 本すべてを入れる。rest は互換のため受ける（使わない）。"""
     if frames < 2:
         raise ValueError("コマ数は 2 以上")
@@ -110,7 +110,7 @@ def main():
     ap.add_argument("--kn5", required=True)
     ap.add_argument("--cockpit", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--lock", type=float, default=180.0, help="driver3d.ini の LOCK と同じ値（度）")
+    ap.add_argument("--lock", type=float, default=90.0, help="片側の角度（度）。driver3d.ini の LOCK と同じ値。コマ 0〜最後が −lock〜+lock")
     ap.add_argument("--frames", type=int, default=101)
     ap.add_argument("--grip-deg", type=float, default=60.0)
     a = ap.parse_args()

@@ -39,7 +39,7 @@ def steer(request, tmp_path_factory):
         kn5 = _export(tmp, blend)
     rest = dp.rest_from_kn5(kn5)
     seated = dp.solve_seated(rest, COCKPIT)
-    tracks = ds.build_steer(seated, rest, COCKPIT, 180.0)
+    tracks = ds.build_steer(seated, rest, COCKPIT, 90.0)
     return rest, seated, tracks, kn5
 
 
@@ -91,7 +91,7 @@ def _rim_angles(tracks, seated):
     return ang, tan
 
 
-@pytest.fixture(scope="module", params=[180.0, 450.0])
+@pytest.fixture(scope="module", params=[90.0, 225.0])
 def written(request, steer, tmp_path_factory):
     """ksanim をファイルに書いて読み戻したもの。"""
     rest, seated, _, _ = steer
@@ -110,7 +110,7 @@ def test_written_grip_monotonic_stops_and_follows_tangent(written):
         d = np.diff(v)
         assert np.all(d <= 0.05) or np.all(d >= -0.05), a           # 行ったり来たりしない
         assert max(tan[a]) <= 15.0, (a, max(tan[a]))                 # 指がリムの接線に沿う
-        theta = np.array([ds.FRAME0_SIGN * (lock / 2 - lock * i / 100) for i in range(101)])
+        theta = np.array([ds.FRAME0_SIGN * (lock - 2 * lock * i / 100) for i in range(101)])
         lo, hi = arcs[a]
         for beyond in (theta > hi + 0.5, theta < lo - 0.5):         # 届く区間の外のコマ = 止まっているはずのコマ
             if beyond.any():
@@ -169,7 +169,7 @@ def test_frame_direction_frame0_is_clockwise(steer):
 
 def test_large_lock_no_flip_and_on_rim(steer):
     rest, seated, _, _ = steer
-    t = ds.build_steer(seated, rest, COCKPIT, 450.0)
+    t = ds.build_steer(seated, rest, COCKPIT, 225.0)
     prev = None
     for i in range(101):
         W = world_at(t, i)
@@ -185,7 +185,7 @@ def test_cli(steer, tmp_path):
     _, _, _, kn5 = steer
     out = tmp_path / "steer.ksanim"
     r = subprocess.run(["python3", str(ROOT / "tools/driver_steer.py"), "--kn5", str(kn5), "--cockpit",
-                        str(ROOT / "design/driver/cockpit.json"), "--lock", "180", "--out", str(out)],
+                        str(ROOT / "design/driver/cockpit.json"), "--lock", "90", "--out", str(out)],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     t = ksanim.read(out)

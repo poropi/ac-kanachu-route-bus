@@ -89,7 +89,7 @@ def test_driver3d_ini_values():
         f.write_text(driver.driver3d_ini(450), encoding="utf8")
         assert physics.read_ini(f, strict=True)["STEER_ANIMATION"]["LOCK"] == "450"
     assert ini["MODEL"] == {"NAME": "kanachu_driver", "POSITION": "0,0,0"}
-    assert ini["STEER_ANIMATION"] == {"NAME": "steer.ksanim", "LOCK": "180"}
+    assert ini["STEER_ANIMATION"] == {"NAME": "steer.ksanim", "LOCK": "90"}
     assert "SHIFT_ANIMATION" in ini and int(ini["SHIFT_ANIMATION"]["PRELOAD_RPM"]) < 2600   # 回転は 2,600 rpm まで
     assert [ini["HIDE_OBJECT_%d" % i]["NAME"] for i in range(3)] == ["DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP"]
     assert not any(k.startswith("HIDE_OBJECT_") and k not in ("HIDE_OBJECT_0", "HIDE_OBJECT_1", "HIDE_OBJECT_2") for k in ini)

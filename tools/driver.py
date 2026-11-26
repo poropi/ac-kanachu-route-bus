@@ -20,7 +20,7 @@ ROOT = paths.WORK
 BLEND = ROOT / "design" / "driver" / "kanachu_driver.blend"
 COCKPIT = ROOT / "design" / "driver" / "cockpit.json"
 DRIVER_NAME = "kanachu_driver"
-LOCK_DEG = 180   # ハンドルの片側の最大の切れ角（度）。driver_steer.py の --lock と driver3d.ini の LOCK は同じ値にする
+LOCK_DEG = 90    # ハンドルの片側の角度（度）。AC は steer.ksanim のコマ 0〜最後を −LOCK〜+LOCK に割り当てる。driver_steer.py の --lock と driver3d.ini の LOCK は同じ値にする
 
 # 自動変速の路線バス用の変速の手の動き（レーシングカーの値は使わない）。
 # 変速は自動で、運転手の手は変速レバーをゆっくり動かす程度にする（時間はミリ秒）。

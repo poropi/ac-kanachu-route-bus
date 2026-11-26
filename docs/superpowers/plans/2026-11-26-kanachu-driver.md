@@ -121,7 +121,7 @@
 
 **Interfaces:**
 - Produces: `ksanim.read(path) -> dict[str, list[Frame]]`、`ksanim.write(tracks: dict[str, list[Frame]], path)`、`Frame(rot: tuple[x, y, z, w], pos: tuple[3], scale: tuple[3])`。形式（版 2）: int 版=2、int 骨の数、骨ごとに 名前（int 長さ＋utf8）・int コマ数・コマごとに 10 float（四元数 x y z w、位置 3、大きさ 3）。
-- Produces: `driver_steer.build_steer(seated: dict, rest: dict, cockpit: dict, lock_deg: float, frames: int = 101) -> dict[str, list[Frame]]`。コマ i のハンドルの回転角 = −lock/2 + lock·i/(frames−1)（**仮定**。Task 8 のゲームで確かめ、違えば対応を直す）。|角度| ≤ 90° は両手がリムの同じ点を握ったまま回る（リム上の握り点をハンドルの軸まわりに回し、腕を IK で解く）。それより先は、手の握り点を ±90° の位置で止める（リムから手が離れる）。腕以外の骨は全コマで座った姿勢のまま。`lock_deg` は `driver3d.ini` の `LOCK` と同じ値で、既定 180。
+- Produces: `driver_steer.build_steer(seated: dict, rest: dict, cockpit: dict, lock_deg: float, frames: int = 101) -> dict[str, list[Frame]]`。コマ i のハンドルの回転角 = −lock + 2·lock·i/(frames−1)（2026-11-26 訂正: lock は片側の角度）（**仮定**。Task 8 のゲームで確かめ、違えば対応を直す）。|角度| ≤ 90° は両手がリムの同じ点を握ったまま回る（リム上の握り点をハンドルの軸まわりに回し、腕を IK で解く）。それより先は、手の握り点を ±90° の位置で止める（リムから手が離れる）。腕以外の骨は全コマで座った姿勢のまま。`lock_deg` は `driver3d.ini` の `LOCK` と同じ値で、既定 90（2026-11-26 訂正: LOCK は片側の角度。当初は 180 としていたが誤り）。
 - CLI: `python3 tools/driver_steer.py --kn5 … --cockpit … --lock 180 --out build/driver/steer.ksanim`
 
 - [ ] **Step 1: テストを書く** — `test_ksanim_roundtrip`（`refs` に借り物があれば読めて 55 本×101 コマ。自作の 2 本×3 コマを書いて読むと一致）、`test_hands_on_rim_within_90`（0°・+90°・−90° のコマで、手のひらの中心とリムの距離 ≤ 0.02 m）、`test_no_ik_flip`（隣のコマどうしで肘の角度の変化 ≤ 10°、肘の位置の移動 ≤ 0.05 m。全 101 コマで）、`test_other_bones_static`（腕・手・指以外の骨は全コマで座った姿勢と一致）。
