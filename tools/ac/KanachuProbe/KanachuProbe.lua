@@ -36,7 +36,7 @@ if enabled then
 end
 function script.windowMain() ui.text('Kanachu probe') end
 
-local CAMS = {'chase','side','front34','cockpit','cockdown','drvfront','drvwindow','drvaisle'}   -- cockdown: eye position looking 35 deg down, shows the steering wheel and hands
+local CAMS = {'chase','side','front34','cockpit','drvhands','drvfront','drvwindow','drvaisle'}   -- cockdown: eye position looking 35 deg down, shows the steering wheel and hands
 -- AC's own cameras (not grabbed): cockpit, acchase1/2 = F1 chase / chase far (global distance, user: covers the screen), f6_3/4 = the rear F6 cameras in cameras.ini (AC reads at most 6)
 local NATIVE = {cockpit = true, acchase1 = true, acchase2 = true, f6_3 = true, f6_4 = true}
 -- External views use our own grabbed camera (the bus is 10.4 x 2.5 x 3.1 m; AC's chase camera ends up inside it).
@@ -84,6 +84,7 @@ local CARCAM = {
   drvfront  = {p = {-0.9, 2.3, 7.0},  t = {-0.64, 1.75, 3.75}, fov = 35},   -- 2 m ahead of the bus, through the windshield
   drvwindow = {p = {-3.2, 2.0, 3.9},  t = {-0.64, 1.75, 3.70}, fov = 35},   -- outside the driver's (right) side window
   drvaisle  = {p = {0.45, 1.95, 2.3}, t = {-0.60, 1.55, 3.85}, fov = 55},   -- inside, from the aisle behind-left
+  drvhands  = {p = {-0.85, 2.15, 4.75}, t = {-0.64, 1.45, 4.00}, fov = 50}, -- inside the windshield, looking down at both hands on the wheel
 }
 local MIRROR_AT = {mirrorR = {-1.327, 2.031, 4.508}, mirrorL = {1.263, 1.997, 5.124}}
 local function eyeWorld(c) return c.position + c.side * EYE[1] + c.up * EYE[2] + c.look * EYE[3] end
@@ -230,14 +231,14 @@ local function circleControl(c)
   local kmh = c.speedKmh
   if phase == 'S' then
     ctl.steer = 0.1; ctl.gas = 0; ctl.brake = 1
-    if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('steer90', {'cockdown', 'cockpit'})
+    if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('steer90', {'drvhands', 'drvwindow', 'drvaisle', 'cockpit'})
     elseif sShot and not shotJob then phase = 'S2'; sT = elapsed; sShot = false; record('phase S done') end
     return
   end
   -- S2: the same at 90 deg to the LEFT (steer -0.1), so the driver's hands can be judged at 0 / +90 / -90 (original driver, Task 8)
   if phase == 'S2' then
     ctl.steer = -0.1; ctl.gas = 0; ctl.brake = 1
-    if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steerm90', {'cockdown', 'cockpit'})
+    if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steerm90', {'drvhands', 'drvwindow', 'drvaisle', 'cockpit'})
     elseif sShot and not shotJob then phase = 'A'; driveStart = elapsed; record('phase S2 done') end
     return
   end
