@@ -260,10 +260,10 @@ def test_multi_material_skinned_split(kn5, multi):
     s0, s1 = dummy.children
     assert [k.materials[s.matid].name for s in (s0, s1)] == ["driver_suit_skinned", "driver_shoes_skinned"]
     assert all(k.materials[s.matid].shader == "ksSkinnedMesh" for s in (s0, s1))
-    # 同じ画像を使う 2 つのマテリアルは、kn5 のテクスチャ 1 枚を共有する
+    # 同じ画像を使う 2 つのマテリアルは、最初のマテリアルの名前のテクスチャ 1 枚を共有する
     tnames = [t.name for t in k.textures]
-    assert tnames.count("driver_tex.dds") == 1 and len(tnames) == len(set(tnames))
-    assert [k.materials[s.matid].tex[0][2] for s in (s0, s1)] == ["driver_tex.dds", "driver_tex.dds"]
+    assert "driver_shoes.dds" not in tnames and len(tnames) == len(set(tnames))
+    assert [k.materials[s.matid].tex[0][2] for s in (s0, s1)] == ["driver_suit.dds", "driver_suit.dds"]
     assert "driver_unused" not in {t.name[:-4] for t in k.textures} | {m.name.replace("_skinned", "") for m in k.materials}
     # 頂点数・三角形数の合計は 1 マテリアルの書き出しと同じ
     one = skinned(base)["DRIVER:BODY"]

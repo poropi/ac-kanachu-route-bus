@@ -35,7 +35,7 @@ elif mode == "multi_material":
         for p in me.polygons:
             if p.normal.z > 0.5:
                 p.material_index = len(me.materials) - 1
-    # driver_suit と driver_shoes に同じパック画像（driver_tex）を付ける（kn5 のテクスチャは 1 枚だけになるはず）
+    # driver_suit と driver_shoes に同じパック画像（driver_tex）を付ける（kn5 のテクスチャは driver_suit.dds の 1 枚だけになるはず）
     for mn in ("driver_suit", "driver_shoes"):
         m = bpy.data.materials[mn]; m.use_nodes = True
         nd = m.node_tree.nodes.new("ShaderNodeTexImage"); nd.image = bpy.data.images["driver_tex"]

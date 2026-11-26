@@ -39,7 +39,7 @@ def to_kn5(a): return np.c_[-a[:, 0], a[:, 2], a[:, 1]]
 def row(m): return tuple(float(x) for x in np.asarray(m, "f8").T.ravel())   # 列ベクトル規約の行列 -> kn5 の並び
 def row_bytes(m): return struct.pack("<16f", *row(m))
 
-mats, mat_index, texs, tex_src = [], {}, {}, {}   # tex_src: テクスチャ名 -> 元の画像名（単色なら None）
+mats, mat_index, texs, tex_by_src = [], {}, {}, {}   # tex_by_src: ("image", 画像名) / ("color", マテリアル名) -> テクスチャ名
 
 def material_image(m):
     """マテリアルの画像（最初の Image Texture ノード）。無ければ None。"""
@@ -50,10 +50,12 @@ def material_image(m):
     return None
 
 def material_texture_name(m):
-    """kn5 のテクスチャ名。画像があれば画像の名前（拡張子を除く）+ .dds で、同じ画像を使うマテリアルどうしは 1 枚を共有する
-    （実モデルでは制服・靴・金具・首の 4 マテリアルが 2048x1536 の 1 枚を使う）。画像が無ければマテリアル名 + .dds（基本色の単色）。"""
+    """kn5 のテクスチャ名。マテリアル名 + .dds。ただし同じ画像を使うマテリアルどうしは、その画像を最初に使った
+    マテリアルの名前の 1 枚を共有する（実モデルでは制服・靴・金具・首の 4 マテリアルが 2048x1536 の 1 枚を使う）。"""
     img = material_image(m)
-    return (os.path.splitext(img.name)[0] if img is not None else m.name) + ".dds", img
+    key = ("image", img.name) if img is not None else ("color", m.name)
+    if key not in tex_by_src: tex_by_src[key] = m.name + ".dds"
+    return tex_by_src[key]
 
 def material_texture(m):
     """マテリアルの画像（Image Texture ノード）を DDS にする。画像が無ければ基本色の単色。"""
@@ -84,12 +86,8 @@ def matid(m, shader):
     """Blender のマテリアル m を kn5 のマテリアル番号にする。同じ (マテリアル, シェーダー) は 1 回だけ書く。"""
     key = (m.name, shader)
     if key not in mat_index:
-        tname, img = material_texture_name(m)
-        src = img.name if img is not None else None
-        if tname not in texs:
-            texs[tname] = kn5io.Tex(1, tname, material_texture(m)); tex_src[tname] = src
-        elif tex_src.get(tname, src) != src:   # 画像の名前とマテリアル名がぶつかった（中身が違うのに同じ名前になる）
-            raise SystemExit("texture name %s is used by different sources (%s / %s)" % (tname, tex_src[tname], src))
+        tname = material_texture_name(m)
+        if tname not in texs: texs[tname] = kn5io.Tex(1, tname, material_texture(m))
         if shader == "ksPerPixel":
             props = [("ksAmbient", 0.45), ("ksDiffuse", 0.5), ("ksSpecular", 0.0), ("ksSpecularEXP", 10.0),
                      ("ksEmissive", 0.0), ("ksAlphaRef", 0.0)]
