@@ -1,7 +1,7 @@
 # blender -b IN.blend --python weight_variant.py -- OUT.blend MODE
 # 試験用: 最小の運転手 .blend を 1 か所変えて保存する。
 #   five_influence: DRIVER:BODY の頂点 0 の 5 本の骨に重み 0.4, 0.3, 0.15, 0.1, 0.05 を付ける（合計は 1 に足りない並び）
-#   pose / mirror / multi_material / single_slot_extra: 下の各分岐を参照
+#   pose / mirror / multi_material / neck_material / single_slot_extra: 下の各分岐を参照
 import sys
 
 import bpy
@@ -39,6 +39,12 @@ elif mode == "multi_material":
     for mn in ("driver_suit", "driver_shoes"):
         m = bpy.data.materials[mn]; m.use_nodes = True
         nd = m.node_tree.nodes.new("ShaderNodeTexImage"); nd.image = bpy.data.images["driver_tex"]
+elif mode == "neck_material":   # DRIVER:BODY の上面（法線が +Z、頂点は RIG_Cest）を首の肌のマテリアル driver_neck にする
+    me = ob.data
+    me.materials.append(bpy.data.materials.new("driver_neck"))
+    for p in me.polygons:
+        if p.normal.z > 0.5:
+            p.material_index = len(me.materials) - 1
 elif mode == "single_slot_extra":   # 枠が 2 つあっても面が 1 つの枠しか使わなければ、分けずに今までどおり
     me = bpy.data.objects["DRIVER:HAIR"].data
     me.materials.append(bpy.data.materials.new("driver_unused"))

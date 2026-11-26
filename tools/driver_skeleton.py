@@ -76,6 +76,13 @@ BONES = [
 HEAD_MESHES = ("DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP")
 # 骨で動くメッシュ（Armature モディファイアと、骨名の頂点グループを持つ）
 SKINNED_MESHES = ("DRIVER:BODY", "DRIVER:GLOVES")
+# 首の肌（2026-11-26、ユーザー判断）: NECK_SOURCE のうちマテリアル名が NECK_MATERIAL_PREFIX で始まる面を、書き出しで骨で動くメッシュから外し、
+# 頭の骨に付いた固定メッシュ NECK_MESH（種類 2。複数マテリアルなら種類 1 + _SUBn）にする。driver3d.ini の HIDE_OBJECT は骨で動く
+# メッシュ（種類 3、前の DRIVER:BODY_SUB3）を隠せなかった（試走のユーザーの画面）ので、頭と同じ固定メッシュにして運転席の視点から隠す。
+# .blend の作り（首の肌は DRIVER:BODY の一部で、重みは RIG_Cest・RIG_Nek）は変えない。
+NECK_SOURCE = "DRIVER:BODY"
+NECK_MATERIAL_PREFIX = "driver_neck"
+NECK_MESH = "DRIVER:NECK"
 
 # AC が driver3d.ini の [HEAD_MOVEMENT] で回す首の骨と、その子の頭の骨のレストの向き（2026-11-26、ユーザー判断）。
 # AC は DRIVER:RIG_Nek をそのローカルの軸のまわりに回す（Y = ヨー、Z = 前、X = +x = 運転手の左。Kunos の運転手は首が Y 上・Z 前、

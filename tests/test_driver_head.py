@@ -1,5 +1,6 @@
 """運転士の頭（2026-11-26、ユーザー判断）: 首・頭の骨を AC の軸にしても、どの姿勢でも見た目（頂点の世界位置）が変わらないこと。
 
+首の肌は骨で動く BODY_SUB3 から頭の骨の固定メッシュ NECK に変えたので、別に上限（6 mm）を置く。
 基準は、骨の向きを変える前の書き出し（c0d03d2 の tools/driver_to_kn5.py）で本物のモデルを書き出し、
 今の座らせ方（driver_pose）・ハンドルの動き（driver_steer）で動かしたもの。座った姿勢と ksanim のコマ 0・50・100 で、
 同じ名前のメッシュの頂点の世界位置が 1e-5 m 以内（点の集合として比べる。頭のメッシュは頭の骨のローカルで統合するので並びが変わりうる）。
@@ -73,3 +74,9 @@ def test_posed_vertices_unchanged(pair):
         for n in same:
             d = driver_posed.max_point_set_distance(mo[n], mn[n])
             assert d <= 1e-5, (label, n, d)
+        # 首の肌: 前は骨で動く BODY_SUB3（重みは RIG_Cest・RIG_Nek）、今は頭の骨の固定メッシュ NECK。座った姿勢では頭は前傾を
+        # 打ち消して正面を向き、首は上体と一緒に約 5° 前傾するので、その差だけ動く（実測の最大 4.9 mm）。上限 6 mm
+        assert "DRIVER:BODY_SUB3" not in mn and len(mn["DRIVER:NECK"]) == len(mo["DRIVER:BODY_SUB3"])
+        d = driver_posed.max_point_set_distance(mo["DRIVER:BODY_SUB3"], mn["DRIVER:NECK"])
+        assert d <= 0.006, (label, d)
+        print("%s: 首の肌の移動 最大 %.1f mm" % (label, 1000 * d))

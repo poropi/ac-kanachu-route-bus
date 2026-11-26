@@ -157,7 +157,7 @@ def driver_problems(car, driver_kn5):
             bad.append("%s を読めない: %s" % (driver_kn5.name, e))
         if got is not None:
             bad += ["%s に骨 %s が無い" % (driver_kn5.name, n) for n in want if n not in got]
-            okay = set(want) | set(driver_skeleton.SKINNED_MESHES) | set(driver_skeleton.HEAD_MESHES)   # メッシュの入れ物も種類 1
+            okay = set(want) | set(driver_skeleton.SKINNED_MESHES) | set(driver_skeleton.HEAD_MESHES) | {driver_skeleton.NECK_MESH}   # メッシュの入れ物も種類 1
             bad += ["%s に余分な種類 1 のノード %s がある" % (driver_kn5.name, n) for n in sorted(got - okay)]
     f = car / "driver_base_pos.knh"
     if f.is_file() and f.stat().st_size:

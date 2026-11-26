@@ -4,7 +4,8 @@
 #
 # 構成（Kunos の運転手 driver.kn5 と同じ形）:
 #   DRIVER:DRIVER（種類 1）→ 骨の階層（種類 1、行列は親からの相対）
-#     RIG_Head の子 = HEAD_MESHES（種類 2、頂点は頭の骨のローカル座標）
+#     RIG_Head の子 = HEAD_MESHES（種類 2、頂点は頭の骨のローカル座標）と、首の肌 NECK_MESH（DRIVER:BODY の driver_neck* の面。
+#       2026-11-26: 骨で動くメッシュは HIDE_OBJECT で隠れないので、頭と同じ固定メッシュにする。BODY からは外す）
 #     根の直下に <名前>（種類 1、単位行列）→ その子に <名前>（種類 3、骨で動くメッシュ）。頂点は世界座標（バインド姿勢）
 #   メッシュは面が使うマテリアルごとに分ける（使わない枠は飛ばす）。Kunos の DRIVER:HELMET（種類 1）→
 #   DRIVER:HELMET_SUB0 / _SUB1（種類 2）と同じ形:
@@ -21,7 +22,7 @@
 import bpy, bmesh, sys, os, struct, numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kn5io
-from driver_skeleton import AC_AXES_BONES, BONES, HEAD_MESHES, SKINNED_MESHES
+from driver_skeleton import AC_AXES_BONES, BONES, HEAD_MESHES, NECK_MATERIAL_PREFIX, NECK_MESH, NECK_SOURCE, SKINNED_MESHES
 from textures import dds_from_rgba
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -189,10 +190,15 @@ def finish(n, rec, tri, key_extra=None):
 def common(Pk, Nk, UV, Tk):
     return [Pk, Nk, np.c_[UV[:, 0], 1 - UV[:, 1]], Tk]   # UV の v は反転（blend_to_kn5 と同じ）
 
-def static_node(ob, name, bone_world_inv):
+def is_neck(m): return m.name.startswith(NECK_MATERIAL_PREFIX)
+
+def static_node(ob, name, bone_world_inv, keep=None):
     """頭の骨に付く固定メッシュ（種類 2）。頂点は骨のローカル座標（kn5 空間）。
-    複数マテリアルなら、単位行列の <名前>（種類 1）の子に <名前>_SUBi（種類 2）を並べたものを返す。"""
+    複数マテリアルなら、単位行列の <名前>（種類 1）の子に <名前>_SUBi（種類 2）を並べたものを返す。
+    keep（マテリアル -> bool）を渡すと、その面だけを書く（無ければ None）。"""
     Pw, Nw, UV, Tw, LV, tri, _, groups = mesh_arrays(ob)
+    if keep is not None: groups = [g for g in groups if keep(g[0])]
+    if not groups: return None
     Pk, Nk, Tk = to_kn5(Pw), to_kn5(Nw), to_kn5(Tw)
     Bi = bone_world_inv; Lb = Bi[:3, :3]                       # 世界 -> 骨ローカル（kn5、回転のみ）
     Pk = Pk @ Lb.T + Bi[:3, 3]; Nk = Nk @ Lb.T; Tk = Tk @ Lb.T
@@ -208,10 +214,12 @@ def static_node(ob, name, bone_world_inv):
     if len(out) == 1: return out[0]
     return kn5io.Node(1, name, 1, children=out, matrix=row(np.eye(4)))   # 単位行列なので世界での位置は変わらない
 
-def skinned_nodes(ob, name, bone_inv):
+def skinned_nodes(ob, name, bone_inv, keep=None):
     """骨で動くメッシュ（種類 3）をマテリアルごとに返す。頂点は kn5 の世界座標（バインド姿勢）。
-    bone_inv: 骨名 -> 逆バインド行列（kn5 の並び）。骨リストはその部分の頂点が使う骨だけ（BONES の順）。"""
+    bone_inv: 骨名 -> 逆バインド行列（kn5 の並び）。骨リストはその部分の頂点が使う骨だけ（BONES の順）。
+    keep（マテリアル -> bool）を渡すと、その面だけを書く。"""
     Pw, Nw, UV, Tw, LV, tri, W, groups = mesh_arrays(ob, set(bone_inv))
+    if keep is not None: groups = [g for g in groups if keep(g[0])]
     base = np.column_stack(common(to_kn5(Pw), to_kn5(Nw), UV, to_kn5(Tw)))
     out = []
     for nm, (m, t) in zip(sub_names(name, groups), groups):
@@ -261,8 +269,11 @@ def main():
         ob = bpy.data.objects.get(n)
         if ob is None or ob.type != "MESH": raise SystemExit("mesh %s not found" % n)
         dummy = kn5io.Node(1, n, 1, matrix=row(np.linalg.inv(K[ARMATURE])))   # 頂点は世界座標なので、根の変換を打ち消して世界で単位にする
-        dummy.children = skinned_nodes(ob, n, bone_inv)
+        dummy.children = skinned_nodes(ob, n, bone_inv, keep=(lambda m: not is_neck(m)) if n == NECK_SOURCE else None)
         root.children.append(dummy)
+    # 首の肌: BODY の driver_neck* の面を頭の骨の固定メッシュにする（骨で動くメッシュの後に書くので、マテリアル・テクスチャの番号と名前は前のまま）
+    neck = static_node(bpy.data.objects[NECK_SOURCE], NECK_MESH, np.linalg.inv(K[HEAD_BONE]), keep=is_neck)
+    if neck is not None: nodes[HEAD_BONE].children.append(neck)
     k = kn5io.Kn5(5, None, list(texs.values()), mats, root)
     os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
     tmp = OUT + ".tmp"

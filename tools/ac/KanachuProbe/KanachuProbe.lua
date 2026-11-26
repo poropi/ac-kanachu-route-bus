@@ -139,7 +139,7 @@ local function releaseCamera() if grabbed then pcall(function() grabbed:dispose(
 -- ac.SceneReference with :size() and :setVisible()). ':' may be read as a filter key by CSP, so '?' (single-character wildcard, which hit
 -- in an earlier CSP Lua probe where '*' did not) is tried as well; the multi-material head meshes are kind-1 nodes with _SUBn meshes.
 -- Every attempt and its count is logged; nothing found or no API -> HIDE_UNAVAILABLE. Visibility is restored right after the shot.
-local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP', 'BODY_SUB3'}   -- the same list as tools/driver.py HIDE. Head ones are kind-1 nodes with kind-2 meshes <name>_SUB0, _SUB1; BODY_SUB3 (neck skin) is a kind-3 skinned mesh
+local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP', 'NECK'}   -- the same list as tools/driver.py HIDE. Face/hair/cap are kind-1 nodes with kind-2 meshes <name>_SUB0, _SUB1; NECK (neck skin) is a single kind-2 mesh under RIG_Head (was the skinned BODY_SUB3, which HIDE_OBJECT could not hide)
 local HIDE_MAX = 8                                        -- more matches than this for one filter are logged, not hidden
 local hiddenRefs = nil
 local function hideDriverHead(hide)

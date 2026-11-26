@@ -6,7 +6,7 @@ import pytest
 
 import kn5io
 import paths
-from driver_skeleton import AC_AXES_BONES, BONES, HEAD_MESHES, SKINNED_MESHES
+from driver_skeleton import AC_AXES_BONES, BONES, HEAD_MESHES, NECK_MESH, SKINNED_MESHES
 
 ROOT = Path(__file__).resolve().parent.parent
 pytestmark = pytest.mark.skipif(not (paths.BLENDER and Path(paths.BLENDER).exists()), reason="Blender not found")
@@ -321,6 +321,28 @@ def test_multi_material_head_split(kn5, multi):
     one = by_name(base)["DRIVER:HAIR"]
     assert np.array_equal(world_rows(k, [s0, s1]), world_rows(base, [one]))
     assert sum(len(s.indices) for s in (s0, s1)) == len(one.indices)
+
+
+def test_neck_split_to_head_bone(kn5, tmp_path):
+    """2026-11-26: DRIVER:BODY の driver_neck* の面は、骨で動く BODY から外し、頭の骨の子の固定メッシュ DRIVER:NECK（種類 2、ksPerPixel）にする。
+    レストの姿勢での頂点の世界位置は、分ける前の BODY のその面の位置と同じ。BODY の残りは今までどおり骨で動く。"""
+    r, out = export(variant(tmp_path, "neck_material"), tmp_path)
+    assert out.exists(), r.stdout + r.stderr
+    k = kn5io.read(out)
+    head = next(n for n in kn5io.walk(k.root) if n.name == "DRIVER:RIG_Head")
+    kids = {c.name: c for c in head.children}
+    assert set(kids) == set(HEAD_MESHES) | {NECK_MESH}
+    neck = kids[NECK_MESH]
+    assert neck.cls == 2 and k.materials[neck.matid].name == "driver_neck" and k.materials[neck.matid].shader == "ksPerPixel"
+    body = next(n for n in k.root.children if n.name == "DRIVER:BODY")
+    assert [(c.cls, c.name) for c in body.children] == [(3, "DRIVER:BODY")]
+    assert k.materials[body.children[0].matid].name == "driver_suit_skinned"
+    base = skinned(kn5[0])["DRIVER:BODY"]
+    assert len(body.children[0].indices) + len(neck.indices) == len(base.indices)
+    W = world_matrices(k.root)
+    p = np.c_[np.frombuffer(neck.vertices, "<f4").reshape(-1, 11)[:, :3], np.ones(len(neck.vertices) // 44)] @ W["DRIVER:RIG_Head"]
+    assert np.allclose(p[:, 1], 1.455, atol=1e-5)                      # BODY の箱の上面（Blender z 1.455）
+    assert np.allclose(np.abs(p[:, 0]), 0.17, atol=1e-5) and np.allclose(np.abs(p[:, 2]), 0.10, atol=1e-5)
 
 
 def test_single_material_unchanged(kn5, tmp_path):
