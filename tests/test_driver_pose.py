@@ -45,9 +45,10 @@ def solved(request, tmp_path_factory):
     return rest, local, report, kn5
 
 
-def dist_to_rim_circle(p):
-    """点 p とリムの管の中心線（円）の距離。"""
-    c, n, r = np.array(COCKPIT["wheel_center"]), np.array(COCKPIT["wheel_axis"]), COCKPIT["rim_radius"]
+def dist_to_grip_circle(p):
+    """点 p と握りの円（リムの面の中、管の中心線から外へ 管の半径 + 手のひらの厚みの半分）の距離。
+    2026-11-26 改訂: 手のひらの中心の目標は管の中心線でなく、管の表面の外側。"""
+    c, n, r = np.array(COCKPIT["wheel_center"]), np.array(COCKPIT["wheel_axis"]), dp.grip_radius(COCKPIT)
     d = p - c
     off = float(np.dot(d, n))
     return float(np.hypot(np.linalg.norm(d - off * n) - r, off))
@@ -73,14 +74,40 @@ def test_seated_pose_constraints(solved):
     head = W["DRIVER:RIG_Head"][3, :3]
     assert head[1] < COCKPIT["eye"][1]
     palms = {a: dp.palm_center(W, a) for a in "LR"}
-    hands = {a: dist_to_rim_circle(palms[a]) for a in "LR"}
+    hands = {a: dist_to_grip_circle(palms[a]) for a in "LR"}
     assert max(hands.values()) <= 0.02, hands
     assert 60.0 <= report["grip_deg"] <= 100.0
     assert np.linalg.norm(palms["L"] - palms["R"]) > 0.15      # 両手が同じ点に重ならない
     print("握り角 %.0f 度、前傾（腰から首）%.1f 度（解の前傾 %.0f 度）、腰の前後のずれ %+.2f m、肘の曲げ L %.1f R %.1f 度、"
-          "手のひら-リム L %.4f R %.4f m、頭の高さ %.3f（目 %.3f）"
+          "手のひら-握りの円 L %.4f R %.4f m、頭の高さ %.3f（目 %.3f）"
           % (report["grip_deg"], lean, report["lean_deg"], report["pelvis_slide_m"], bends["L"], bends["R"],
              hands["L"], hands["R"], head[1], COCKPIT["eye"][1]))
+
+
+def test_fingers_curled_by_grip_json(solved):
+    """指の骨（両手）の親からの相対の 3x3 = grip_fingers.json の回転 @ レスト。平行移動はレストのまま。指以外の手の骨は曲げない。"""
+    rest, local, _, _ = solved
+    deltas = dp.load_grip_fingers()
+    for a in "LR":
+        fingers = dp.finger_bones(a)
+        assert len(fingers) == 15, (a, fingers)
+        assert all(dp.PARENT[n] in fingers + ["DRIVER:RIG_HAND_" + a] for n in fingers)
+        curled = 0
+        for n in fingers:
+            want = deltas[n] @ np.asarray(rest[n])[:3, :3]
+            assert np.allclose(np.asarray(local[n])[:3, :3], want, atol=1e-5), n
+            assert np.allclose(np.asarray(local[n])[3, :3], np.asarray(rest[n])[3, :3], atol=1e-6), n
+            curled += np.degrees(np.arccos(np.clip((np.trace(deltas[n]) - 1) / 2, -1, 1))) > 10.0
+        assert curled >= 12, (a, curled)                 # 曲げが入っている
+
+
+def test_grip_json_matches_skeleton():
+    deltas = dp.load_grip_fingers()
+    assert set(deltas) == set(dp.finger_bones("L")) | set(dp.finger_bones("R"))
+    assert not any("RIG_HAND" in n for n in deltas)
+    for n, d in deltas.items():
+        assert np.allclose(d @ d.T, np.eye(3), atol=1e-5) and np.linalg.det(d) == pytest.approx(1.0, abs=1e-5), n
+    assert 0.010 <= COCKPIT["rim_tube_radius"] <= 0.025
 
 
 def test_knee_outside_column_and_feet_on_pedals(solved):

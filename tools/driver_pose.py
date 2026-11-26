@@ -12,7 +12,13 @@
  3. 握り: リムの真上から grip_deg（60 = 10 時と 2 時）〜 GRIP_MAX_DEG の、左右対称の角度のうち、
     両腕が肘を MIN_ELBOW_BEND 以上曲げたまま届くいちばん上を選ぶ。そのうち前傾と前後のずれが小さい姿勢を取る
     （まず脚もペダルに届く姿勢から探し、無ければ脚を諦める）。どの角度も届かなければ、最大の前傾・前進・上限の角度で届く所まで。
-    手のひらの中心 = 手首の骨と中指の付け根の中点。指はリムの接線に沿わせる。左右は骨名でなく肩の位置の近さで割り当てる。
+    手のひらの中心 = 手首の骨と中指の付け根の中点。左右は骨名でなく肩の位置の近さで割り当てる。
+    2026-11-26 改訂（握り）: 手のひらはリムの管の表面に置き、指は曲げて握る。
+    - 手のひらの中心の目標は、管の中心線からリムの面の中で外へ (rim_tube_radius + PALM_HALF_THICKNESS) ずらした点
+      （= 半径 rim_radius + rim_tube_radius + PALM_HALF_THICKNESS の「握りの円」の上）。
+    - 手の向き: 小指の付け根から人差し指の付け根への向きをリムの接線（リムの上の向き）に、
+      手のひらをハンドルの中心へ向け、そこから手の座標で GRIP_TILT_DEG だけ回す（曲げた指が管を包むように）。
+    - 指の骨（RIG_HAND_L/R の子孫の HAND_*）は design/driver/grip_fingers.json の回転（.blend の握りのフレーム 2）で曲げる。
  4. 腕・脚は 2 本の骨の解析的 IK（余弦定理）。肘は下と外、膝は前と上へ逃がす。足の母指球（Foot）をペダルの踏面へ、爪先を PEDAL_PITCH 下げる。
  5. 世界行列から親からの相対行列を作る。
 """
@@ -37,7 +43,13 @@ CENTER, CEST, HEAD = P + "RIG_Center", P + "RIG_Cest", P + "RIG_Head"
 SEAT_CLEARANCE = 0.10                        # 腰の骨が座面の上にある高さ (m)
 SEAT_HALF_DEPTH = 0.24                       # 座面の奥行 ≈ 0.48 m の半分。腰は seat_point から前後にこの範囲で動く
 KNEE_MARGIN = 0.03                           # 膝とハンドルの柱の箱の間に空ける余裕 (m)
-HAND_TOLERANCE = 0.02                        # 手のひらとリムの距離の許容 (m)。超えたらエラー
+HAND_TOLERANCE = 0.02                        # 手のひらの中心と目標（握りの円の上の点）の距離の許容 (m)。超えたらエラー
+PALM_HALF_THICKNESS = 0.0163                 # 手のひらの厚みの半分 (m)。GLOVES の手のひらの中心の 2 cm 四方の頂点の、手のひらの法線方向の幅 0.0325 の半分
+# 手の向きの追加の回転（度、手の座標）: (指の付け根の並びのまわり, 手のひらの法線のまわり, 指の向きのまわり)。
+# 手のひらを管に平らに当てただけ（全部 0）では、.blend の曲げた指は管の 1.5〜3 cm 前で輪になり、親指が管に 13 mm めり込む。
+# 指の付け根の並びのまわりに倒して、指の付け根の側を管へ寄せると指が管を包む（値は GLOVES の頂点で、めり込みが最も浅い組を選んだ）。
+GRIP_TILT_DEG = (-50.0, 10.0, -15.0)
+GRIP_FINGERS_JSON = Path(__file__).resolve().parent.parent / "design" / "driver" / "grip_fingers.json"
 MAX_LEAN = 20.0                              # 上体の前傾の上限 (度)
 MIN_ELBOW_BEND = 16.0                        # 肘の曲げの下限 (度)。試験の 15° に余裕を持たせる
 GRIP_MAX_DEG = 100                           # 握る角度の下限（真上から。60 が「10 時と 2 時」、大きいほど下）
@@ -121,6 +133,49 @@ def side_bones(arm):
     return P + "RIG_Arm_" + arm, P + "RIG_ForeArm_" + arm, hand, middle
 
 
+def finger_bones(arm):
+    """指の骨 = RIG_HAND_<arm> の子孫の HAND_* の骨（RIG_HAND 自身は含まない）。"""
+    hand = P + "RIG_HAND_" + arm
+    return [n for n in _desc(hand) if n != hand and n.startswith(P + "HAND_")]
+
+
+def load_grip_fingers(path=None):
+    """骨名 -> 3x3（行ベクトル規約の、親からの相対の回転の差。新しい 3x3 = delta @ レストの 3x3）。"""
+    doc = json.loads(Path(path or GRIP_FINGERS_JSON).read_text(encoding="utf-8"))
+    return {n: np.array(m, dtype=float) for n, m in doc["deltas"].items()}
+
+
+def curl_fingers(local, deltas):
+    """親からの相対行列（行ベクトル規約）の指の骨に、握りの回転を掛けたものを返す（骨の原点のまわり、平行移動はそのまま）。"""
+    out = dict(local)
+    want = set(finger_bones("L")) | set(finger_bones("R"))
+    if set(deltas) != want:
+        raise ValueError("grip_fingers.json の骨が指の骨と違う: %s" % sorted(set(deltas) ^ want))
+    for n, d in deltas.items():
+        M = np.array(local[n], dtype=float)
+        M[:3, :3] = d @ M[:3, :3]
+        out[n] = M
+    return out
+
+
+def hand_frame(B, arm):
+    """手の座標（列ベクトル規約の世界行列 B から）: f = 手首→中指の付け根、l = 小指の付け根→人差し指の付け根（f に直交化）、
+    palm = 手のひらの側（f, l に直交）。左手は f×l、右手は −f×l が手のひらの側（手の掌側・甲側の向きは左右で鏡）。"""
+    _, _, hand, middle = side_bones(arm)
+    kids = CHILDREN[hand]
+    index = next(c for c in kids if "Index" in c)
+    pinkie = next(c for c in kids if "Pinkie" in c)
+    f = unit(pos(B[middle]) - pos(B[hand]))
+    l = pos(B[index]) - pos(B[pinkie])
+    l = unit(l - np.dot(l, f) * f)
+    return f, l, np.cross(f, l) * (1.0 if arm == "L" else -1.0)
+
+
+def grip_radius(cockpit):
+    """握りの円の半径（リムの面の中）= 管の中心線の半径 + 管の半径 + 手のひらの厚みの半分。"""
+    return cockpit["rim_radius"] + cockpit["rim_tube_radius"] + PALM_HALF_THICKNESS
+
+
 def palm_center(W, arm):
     """手のひらの中心 = 手首の骨と中指の付け根の中点（W は世界行列、規約は行・列どちらでも）。"""
     _, _, hand, middle = side_bones(arm)
@@ -166,8 +221,9 @@ def _two_bone_chain(B, b1, b2, end, target, pole, min_bend=0.0):
 
 
 # ---------- 本体 ----------
-def rim_points(cockpit, grip_deg, sign=None):
-    """リムの管の中心線上の、真上（面の中の上向き）から grip_deg の左右の 2 点。sign=±1 なら片側の 1 点だけ。"""
+def rim_points(cockpit, grip_deg, sign=None, radius=None):
+    """リムの管の中心線上の、真上（面の中の上向き）から grip_deg の左右の 2 点。sign=±1 なら片側の 1 点だけ。
+    radius を渡すと、中心線の代わりに同じ面・同じ中心のその半径の円の上の点（握りの円は grip_radius）。"""
     c = np.array(cockpit["wheel_center"])
     n = unit(np.array(cockpit["wheel_axis"]))
     up = np.array([0.0, 1.0, 0.0])
@@ -177,16 +233,18 @@ def rim_points(cockpit, grip_deg, sign=None):
     ip = unit(ip)
     lat = np.cross(n, ip)
     g = np.radians(grip_deg)
-    r = cockpit["rim_radius"]
+    r = cockpit["rim_radius"] if radius is None else radius
     return [c + r * (np.cos(g) * ip + sg * np.sin(g) * lat) for sg in ((1.0, -1.0) if sign is None else (sign,))], n
 
 
-def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
+def solve_seated(rest, cockpit, grip_deg=60.0, report=None, fingers=None):
     """座った姿勢を解く。grip_deg は握りたいいちばん上の角度（真上から）。そこから GRIP_MAX_DEG まで、届くいちばん上を選ぶ。
 
     report に dict を渡すと、grip_deg（選んだ握り角）・lean_deg（上体の前傾、前が正）・pelvis_slide_m（座面の中心からの前後のずれ、前が正）・
     legs_on_pedals（脚がペダルに届く姿勢か）・elbow_bend_deg（L, R）・hand_miss_m（L, R）・leg_miss_m（L, R）を入れる。
+    fingers: 指の握りの回転（load_grip_fingers の形）。None なら design/driver/grip_fingers.json を読む。
     """
+    fingers = load_grip_fingers() if fingers is None else fingers
     L0 = {n: np.asarray(rest[n], dtype=float).T for n, _ in BONES}
     W0 = world_of(L0)
     B0 = {n: M.copy() for n, M in W0.items()}
@@ -210,18 +268,26 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
         _repose(B, HEAD, about(R.T, pos(B[HEAD])))                    # 頭は正面のまま
         return B
 
+    r_grip = grip_radius(cockpit)
+    top = rim_points(cockpit, 0.0, 1.0)[0][0] - c_w         # リムの面の中の「真上」
+
     def grip(B, t, a, sign, g):
-        """リムの g 度の点に a 側の手のひらを置くときの (点, 手の回転, 手首の目標)。体座標。"""
+        """握りの円の g 度の点に a 側の手のひらの中心を置くときの (点, 手の回転, 手首の目標)。体座標。"""
         arm, fore, hand, middle = side_bones(a)
         c_b = c_w - t
-        pt = rim_points(cockpit, g, sign)[0][0] - t
+        pt = rim_points(cockpit, g, sign, r_grip)[0][0] - t
         radial = unit(pt - c_b - np.dot(pt - c_b, axis) * axis)
         tang = np.cross(axis, radial)
-        if np.dot(tang, pt - pos(B[arm])) < 0:
+        if np.dot(tang, top) < 0:                      # 付け根の並びはリムの上の向き（人差し指が上）
             tang = -tang
-        finger = pos(B[middle]) - pos(B[hand])
-        Rh = rot_between(finger, tang)                 # 指をリムの接線へ
-        return pt, Rh, pt - Rh @ (finger / 2)
+        f0, l0, p0 = hand_frame(B, a)
+        palm = -radial                                 # 手のひらをハンドルの中心（管）へ
+        hs = 1.0 if a == "L" else -1.0                 # 右手は左手の鏡: 軸が鏡に映るので回す角度は逆
+        f1 = np.cross(tang, palm) * hs
+        tb, tn, tf = hs * np.radians(GRIP_TILT_DEG)
+        Rt = rot_axis(f1, tf) @ rot_axis(palm, tn) @ rot_axis(tang, tb)
+        Rh = Rt @ np.column_stack([f1, tang, palm]) @ np.column_stack([f0, l0, p0]).T
+        return pt, Rh, pt - Rh @ ((pos(B[middle]) - pos(B[hand])) / 2)
 
     def arm_geom(B, a):
         arm, fore, hand, _ = side_bones(a)
@@ -273,7 +339,7 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
                     t = np.array([seat[0], ty, seat[2] + d])
                     # 左右: 肩が近いほうの点へ
                     sh = {a: pos(B[side_bones(a)[0]]) + t for a in "LR"}
-                    pl, pr = (rim_points(cockpit, g, sg)[0][0] for sg in (1.0, -1.0))
+                    pl, pr = (rim_points(cockpit, g, sg, r_grip)[0][0] for sg in (1.0, -1.0))
                     sgn = {"L": 1.0, "R": -1.0} if (np.linalg.norm(sh["L"] - pl) + np.linalg.norm(sh["R"] - pr)
                                                    <= np.linalg.norm(sh["L"] - pr) + np.linalg.norm(sh["R"] - pl)) \
                         else {"L": -1.0, "R": 1.0}
@@ -319,6 +385,7 @@ def solve_seated(rest, cockpit, grip_deg=60.0, report=None):
     out = {}
     for n, p in BONES:
         out[n] = (L0[n] if p is None else np.linalg.inv(Wf[p]) @ Wf[n]).T.copy()
+    out = curl_fingers(out, fingers)               # 指を曲げて握る（手首・中指の付け根の位置は変わらない）
     if report is not None:
         report.update(rep)
         report["elbow_bend_deg"] = elbow_bends(fk(out))

@@ -10,8 +10,9 @@
 
 コマ i の角度: 借り物の steer.ksanim を読んだ結果、コマが増えると手は運転手から見て反時計回りに回っていた
 （右手が 3 時から上へ）ので、θ_i = +lock − 2·lock·i/(frames−1)（lock = 片側の角度。コマ 0 = 時計回りいっぱい、最後 = 反時計回りいっぱい）。ゲームでの向きは Task 8 で確かめる。
-手ごとに、座った握り点を回して届く（手がリムから 0.02 m 以内、肘の曲げ 15° 以上）区間を 1° 刻みで調べ、
+手ごとに、座った握り点を回して届く（手首の取り残し STOP_MISS = 0.002 m 以内、肘の曲げ 15° 以上）区間を 1° 刻みで調べ、
 θ がその外に出たら、その手は届く端のリムの上で止まる（リムの上を滑る。手は常にリムの上）。胴・鎖骨は動かさない。
+座った姿勢の握り（手のひらは管の表面の外側、指は grip_fingers.json の曲げ）は、手から先を剛体のまま回すので全コマで保たれる。
 """
 import argparse
 import json
@@ -27,6 +28,9 @@ from driver_skeleton import BONES  # noqa: E402
 
 FRAME0_SIGN = +1            # コマ 0 の向き: +1 = 時計回り（右）いっぱい。ゲームで逆なら -1 にする
 MIN_BEND = 15.5             # 握りを続けられる肘の曲げの下限（度。試験の 15° に余裕を持たせる）
+# 握りを続けられる手の取り残し（m）の上限。2026-11-26 改訂: 指を曲げて管を包む握りでは、手が目標から外れると
+# 指と手のひらが管にめり込む（取り残し 0.017 m で 15 mm）。外れ始める前に止めて滑らせる（試験の上限は 6 mm のめり込み）。
+STOP_MISS = 0.002
 
 
 def _ctx(seated, cockpit):
@@ -48,20 +52,20 @@ def _solve_hand(c, axis, W0, spec, phi_deg, B=None):
     R = dp.rot_axis(axis, np.radians(phi_deg))
     target = c + R @ (dp.pos(W0[hand]) - c)                              # 手首も握り点と同じ円の上を回る
     miss = dp._two_bone_chain(B, arm, fore, hand, target, pole, MIN_BEND)
-    dp._repose(B, hand, dp.about(R @ W0[hand][:3, :3] @ B[hand][:3, :3].T, dp.pos(B[hand])))   # 手の向きもリムの接線に沿って回る
+    dp._repose(B, hand, dp.about(R @ W0[hand][:3, :3] @ B[hand][:3, :3].T, dp.pos(B[hand])))   # 手の向きもハンドルと一緒に回る（指の曲げはそのまま）
     v1, v2 = dp.pos(B[arm]) - dp.pos(B[fore]), dp.pos(B[hand]) - dp.pos(B[fore])
     bend = 180.0 - float(np.degrees(np.arccos(np.clip(np.dot(v1, v2) / np.linalg.norm(v1) / np.linalg.norm(v2), -1, 1))))
     return float(miss), bend, B
 
 
 def grip_arcs(seated, cockpit, step=1.0):
-    """手ごとに、座った握り点から回して届く（取り残し ≤ 許容、肘の曲げ ≥ MIN_BEND）リムの角度の連続区間 (最小, 最大)。"""
+    """手ごとに、座った握り点から回して届く（取り残し ≤ STOP_MISS、肘の曲げ ≥ MIN_BEND）リムの角度の連続区間 (最小, 最大)。"""
     c, axis, W0, arms = _ctx(seated, cockpit)
     res = {}
     for a, spec in arms.items():
         def ok(phi):
             miss, bend, _ = _solve_hand(c, axis, W0, spec, phi)
-            return miss <= dp.HAND_TOLERANCE and bend >= MIN_BEND - 1e-6
+            return miss <= STOP_MISS and bend >= MIN_BEND - 1e-6
         if not ok(0.0):
             raise dp.UnreachableError("手がリムに届かない: 座った握り点に %s 側の手が届かない" % a)
         lim = []

@@ -7,6 +7,7 @@ import pytest
 
 import driver_pose as dp
 import driver_steer as ds
+import kn5io
 import ksanim
 import paths
 from driver_skeleton import BONES
@@ -47,8 +48,9 @@ def world_at(tracks, i):
     return dp.fk({n: ksanim.to_matrix(f[i]) for n, f in tracks.items()})
 
 
-def dist_to_rim_circle(p):
-    c, n, r = np.array(COCKPIT["wheel_center"]), np.array(COCKPIT["wheel_axis"]), COCKPIT["rim_radius"]
+def dist_to_grip_circle(p):
+    """点 p と握りの円（手のひらの中心の目標の円。管の中心線から外へ 管の半径 + 手のひらの厚みの半分）の距離。"""
+    c, n, r = np.array(COCKPIT["wheel_center"]), np.array(COCKPIT["wheel_axis"]), dp.grip_radius(COCKPIT)
     d = p - c
     off = float(np.dot(d, n))
     return float(np.hypot(np.linalg.norm(d - off * n) - r, off))
@@ -65,11 +67,12 @@ def test_hands_on_rim_all_frames(steer):
     for i in range(101):          # 0 / 50 / 100 コマ = ±90° / 0° / ∓90°
         W = world_at(tracks, i)
         for a in "LR":
-            assert dist_to_rim_circle(dp.palm_center(W, a)) <= 0.02, (i, a)
+            assert dist_to_grip_circle(dp.palm_center(W, a)) <= 0.02, (i, a)
 
 
 def _rim_angles(tracks, seated):
-    """書いた ksanim から、各手のひらのリム上の角度（座った握り点から、時計回り正、度）と指の向きとの接線のずれ（度）。"""
+    """書いた ksanim から、各手のひらのリム上の角度（座った握り点から、時計回り正、度）と、指の付け根の並び
+    （小指→人差し指の付け根）とリムの接線のずれ（度）。"""
     c, ax = np.array(COCKPIT["wheel_center"]), dp.unit(np.array(COCKPIT["wheel_axis"]))
     Ws = dp.fk(seated)
 
@@ -84,10 +87,9 @@ def _rim_angles(tracks, seated):
         for a in "LR":
             r = radial(dp.palm_center(W, a))
             ang[a].append(float(np.degrees(np.arctan2(np.dot(ax, np.cross(r0[a], r)), np.dot(r0[a], r)))))
-            _, _, hand, mid = dp.side_bones(a)
-            finger = dp.unit(W[mid][3, :3] - W[hand][3, :3])
+            knuckles = dp.hand_frame({n: np.asarray(m).T for n, m in W.items()}, a)[1]
             tang = np.cross(ax, r)
-            tan[a].append(float(np.degrees(np.arccos(np.clip(abs(np.dot(finger, tang)), 0, 1)))))
+            tan[a].append(float(np.degrees(np.arccos(np.clip(abs(np.dot(knuckles, tang)), 0, 1)))))
     return ang, tan
 
 
@@ -109,7 +111,10 @@ def test_written_grip_monotonic_stops_and_follows_tangent(written):
         assert abs(v[50]) < 0.5, a                                  # 0° は座った握り点
         d = np.diff(v)
         assert np.all(d <= 0.05) or np.all(d >= -0.05), a           # 行ったり来たりしない
-        assert max(tan[a]) <= 15.0, (a, max(tan[a]))                 # 指がリムの接線に沿う
+        # 2026-11-26 改訂: 指は曲げて管を包むので、手首→中指の付け根はリムの接線に直交に近い。代わりに指の付け根の並びが
+        # リムの接線に沿い（GRIP_TILT_DEG の分 18° ほど傾く）、そのずれが全コマで座った姿勢と同じ（手がリムと一緒に回る）
+        assert max(tan[a]) <= 25.0, (a, max(tan[a]))
+        assert np.ptp(tan[a]) <= 1.0, (a, np.ptp(tan[a]))
         theta = np.array([ds.FRAME0_SIGN * (lock - 2 * lock * i / 100) for i in range(101)])
         lo, hi = arcs[a]
         for beyond in (theta > hi + 0.5, theta < lo - 0.5):         # 届く区間の外のコマ = 止まっているはずのコマ
@@ -174,7 +179,7 @@ def test_large_lock_no_flip_and_on_rim(steer):
     for i in range(101):
         W = world_at(t, i)
         for a in "LR":
-            assert dist_to_rim_circle(dp.palm_center(W, a)) <= 0.02, (i, a)
+            assert dist_to_grip_circle(dp.palm_center(W, a)) <= 0.02, (i, a)
         el = {a: W[dp.side_bones(a)[1]][3, :3] for a in "LR"}
         if prev:
             assert all(np.linalg.norm(el[a] - prev[a]) <= 0.05 for a in "LR"), i
@@ -190,3 +195,71 @@ def test_cli(steer, tmp_path):
     assert r.returncode == 0, r.stderr
     t = ksanim.read(out)
     assert len(t) == 56 and all(len(v) == 101 for v in t.values())
+
+
+def test_fingers_curled_every_frame(written):
+    """書いて読み戻した ksanim の全コマで、両手の指の骨の相対の 3x3 = grip_fingers.json の回転 @ レスト（座った姿勢と同じ曲げ）。"""
+    tracks, seated, _ = written
+    deltas = dp.load_grip_fingers()
+    for a in "LR":
+        for n in dp.finger_bones(a):
+            ref = np.asarray(seated[n])
+            for i, f in enumerate(tracks[n]):
+                M = ksanim.to_matrix(f)
+                assert np.allclose(M[:3, :3], ref[:3, :3], atol=2e-5), (n, i)
+                assert np.allclose(M[3, :3], ref[3, :3], atol=1e-5), (n, i)
+    # 座った姿勢の指 = レスト @ 曲げ は test_driver_pose.test_fingers_curled_by_grip_json が見る。ここでは座った姿勢と一致を見る
+    assert len(deltas) == 30
+
+
+def _skin(kn5_path, name, W):
+    """kn5 の骨で動くメッシュ name の頂点を、書き出したバインド行列（骨ごとの逆行列）と骨の世界行列 W（行ベクトル規約）で動かす。
+    返り値: (位置 N x 3, 頂点ごとのいちばん重い骨の名前)。"""
+    k = kn5io.read(str(kn5_path))
+    out, dom = [], []
+    for n in kn5io.walk(k.root):
+        if n.cls != 3 or not n.name.startswith(name):
+            continue
+        V = np.frombuffer(n.vertices, "<f4").reshape(-1, 19).astype(float)
+        names = [b for b, _ in n.bones]
+        inv = [np.frombuffer(m, "<f4").reshape(4, 4).astype(float) for _, m in n.bones]
+        P = np.c_[V[:, :3], np.ones(len(V))]
+        acc = np.zeros((len(V), 3))
+        for j in range(4):
+            w, idx = V[:, 11 + j], V[:, 15 + j].astype(int)
+            for bi in np.unique(idx[w > 0]):
+                m = (idx == bi) & (w > 0)
+                acc[m] += w[m, None] * (P[m] @ (inv[bi] @ np.asarray(W[names[bi]])))[:, :3]
+        out.append(acc)
+        dom.append(np.array(names, dtype=object)[V[:, 15].astype(int)])
+    return np.vstack(out), np.concatenate(dom)
+
+
+def _dist_to_tube_centerline(P):
+    c, n, r = np.array(COCKPIT["wheel_center"]), dp.unit(np.array(COCKPIT["wheel_axis"])), COCKPIT["rim_radius"]
+    d = P - c
+    off = d @ n
+    return np.hypot(np.linalg.norm(d - np.outer(off, n), axis=1) - r, off)
+
+
+def test_gloves_grip_tube_without_sinking(steer):
+    """本物のモデルの手袋（GLOVES）を書き出したバインド行列で動かし、θ = 0, +90, −90（コマ 50, 0, 100）で:
+    どの頂点も管に 6 mm より深く入らない（管の中心線からの距離 ≥ 管の半径 − 0.006）、
+    両手とも指の頂点がいくつか管の表面から 10 mm 以内にある（手が管に触れて包んでいる）。"""
+    _, _, tracks, kn5 = steer
+    if Path(kn5).stem != "kanachu_driver":
+        pytest.skip("骨組みだけの模型には手袋の形が無い")
+    rt = COCKPIT["rim_tube_radius"]
+    for i in (50, 0, 100):
+        theta = ds.FRAME0_SIGN * (90.0 - 180.0 * i / 100)
+        W = world_at(tracks, i)
+        P, dom = _skin(kn5, "DRIVER:GLOVES", W)
+        gap = _dist_to_tube_centerline(P) - rt
+        assert gap.min() >= -0.006, (theta, float(gap.min()))
+        for a in "LR":
+            fingers = set(dp.finger_bones(a))
+            fv = np.array([d in fingers for d in dom])
+            near = int((gap[fv] <= 0.010).sum())
+            assert near >= 20, (theta, a, near)
+            print("θ %+.0f° %s: 手袋の最も深いめり込み %.1f mm、管の表面から 10 mm 以内の指の頂点 %d"
+                  % (theta, a, -1000 * float(gap.min()), near))
