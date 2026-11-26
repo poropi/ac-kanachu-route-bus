@@ -82,3 +82,14 @@ def test_clean_zip_is_ok(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cp, "tracked", lambda: [])
     assert cp.main([]) == 0
     assert capsys.readouterr().out.strip().endswith("OK")
+
+
+@pytest.mark.parametrize("data", [b"abc\x00/Users/someone\x00def", b'x "/Users/someone" y', b"p /Users/someone", b"C:\\Users\\someone\x00",
+                                  b"x/Users/someone/y"])
+def test_user_path_without_trailing_separator_is_caught(data):
+    assert cp.scan_bytes("f", data, []) != []
+
+
+@pytest.mark.parametrize("data", [b"/Users/<name>/x", b"Users\\<name>", b"see /Users/ here", b"/Users/\x00"])
+def test_placeholder_or_bare_users_is_allowed(data):
+    assert cp.scan_bytes("f", data, []) == []

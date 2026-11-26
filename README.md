@@ -91,10 +91,10 @@ GAME_PC=<Windows の ssh ホスト名> python3 tools/fmod_build.py build
 ### 公開前の検査
 
 ```sh
-PUBLIC_FORBID=<手元のユーザー名>,<ホスト名> python3 tools/check_public.py
+PUBLIC_FORBID=<ホスト名> python3 tools/check_public.py
 ```
 
-git に入っているファイルと配布する zip に、手元の絶対パスや、公開しない場所のファイル（参考写真の比較画像、PDF、`vendor/` 以下）や、他の MOD から借りたファイルと同じ中身のファイルが無いかを調べます。.blend は圧縮されているので、展開してから調べます。
+git に入っているファイルと配布する zip に、手元の絶対パス（`/Users/<名前>` や `C:\Users\<名前>` は `PUBLIC_FORBID` に書かなくても検出します。`PUBLIC_FORBID` には公開したくない語、たとえばホスト名をコンマ区切りで渡します）や、公開しない場所のファイル（参考写真の比較画像、PDF、`vendor/` 以下）や、他の MOD から借りたファイルと同じ中身のファイルが無いかを調べます。.blend は圧縮されているので、展開してから調べます。
 
 主なフォルダ：
 

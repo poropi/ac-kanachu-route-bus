@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ZIP = ROOT / "build" / "kanachu_route_bus.zip"
-ABS_PATH = re.compile(rb"(/Users/[A-Za-z0-9._-]+/|[A-Za-z]:\\\\?Users\\\\?[A-Za-z0-9._-]+\\\\?)")
+ABS_PATH = re.compile(rb"(/Users/[A-Za-z0-9._-]+(?=[/\\\x00\"'\s]|$)|[A-Za-z]:\\{1,2}Users\\{1,2}[A-Za-z0-9._-]+(?=[/\\\x00\"'\s]|$))")
 ALLOWED_ABS = (b"/Users/<", b"Users\\<")          # 書類の中の伏せ字（<ユーザー>）は許す
 FORBIDDEN_PATHS = (re.compile(r"(^|/)compare/"), re.compile(r"\.pdf$", re.I), re.compile(r"^vendor/"))
 VENDOR = ROOT / "vendor" / "driver_jetset"       # 借りたファイルが置いてある唯一の場所（git に入れない）
