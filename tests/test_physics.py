@@ -231,12 +231,25 @@ def test_analog_instruments(data):
     assert float(rp["STEP"]) * 4000 == pytest.approx(171, abs=1e-3)
 
 
-def test_driver_eyes_from_interior_driver_eye(data):
-    # DRIVER_EYE は Blender (0.642, 3.407, 1.985) -> kn5 (-bx, bz, by)。DRIVEREYES は kn5 座標（GRAPHICS_OFFSET は足さない）
+def test_driver_eyes_from_driver_model(data):
+    # 2026-11-26（ユーザー判断）: DRIVEREYES は運転士のモデルの目（頭の中。tools/driver_eye.py、照合は test_driver_pose）。kn5 座標
+    # （GRAPHICS_OFFSET は足さない）。dash_cam は目の 0.04 m 前
     eyes = [float(x) for x in ini(data, "car.ini")["GRAPHICS"]["DRIVEREYES"].split(",")]
-    assert eyes == pytest.approx([-0.642, 1.985, 3.407], abs=1e-6)
+    assert eyes == pytest.approx([-0.642, 1.815, 3.83], abs=1e-6)
     dash = [float(x) for x in ini(data, "dash_cam.ini")["DASH_CAM"]["POS"].split(",")]
-    assert dash == pytest.approx([-0.642, 1.985, 3.407 + 0.04], abs=1e-6)
+    assert dash == pytest.approx([-0.642, 1.815, 3.83 + 0.04], abs=1e-6)
+
+
+def test_cameras_from_design_eye_unchanged(data):
+    """目から測っていた F6 カメラ 0 番・2 番と MIRROR_POSITION は、目を頭の中へ移しても前の位置のまま（設計時の目 DRIVER_EYE から）。"""
+    s = spec.load()
+    assert [s["design_eye_" + a] for a in "xyz"] == [-0.642, 1.985, 3.407]
+    cams = ini(data, "cameras.ini")
+    pos = lambda i: [float(v) for v in cams["CAMERA_%d" % i]["POSITION"].split(",")]
+    assert pos(2) == pytest.approx([-0.392, 2.035, 3.007], abs=1e-6)
+    assert pos(0)[2] == pytest.approx(4.307, abs=1e-6)
+    mirror = [float(v) for v in ini(data, "car.ini")["GRAPHICS"]["MIRROR_POSITION"].split(",")]
+    assert mirror == pytest.approx([-0.3, 2.5, 4.707], abs=1e-6)
 
 
 def test_onboard_pitch(data):

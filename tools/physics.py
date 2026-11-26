@@ -184,7 +184,7 @@ def _car_ini(s, d, go, total, ax):
                       ("ON_BOARD_PITCH_ANGLE", s["onboard_pitch_deg"]),
                       ("BUMPER_CAMERA_POS", _vec(0, 0.9, d["axle_z_front"] + s["overhang_f"] - 0.2)),
                       ("BONNET_CAMERA_POS", _vec(0, s["height"] - 0.2, d["axle_z_front"] + s["overhang_f"] - 0.6)),
-                      ("MIRROR_POSITION", _vec(-0.3, 2.5, s["eye_z"] + 1.3)),
+                      ("MIRROR_POSITION", _vec(-0.3, 2.5, s["design_eye_z"] + 1.3)),   # 設計時の目から（2026-11-26 に目を頭の中へ移しても動かさない）
                       ("VIRTUAL_MIRROR_ENABLED", 0), ("USE_ANIMATED_SUSPENSIONS", 0), ("SHAKE_MUL", 1),
                       ("FUEL_LIGHT_MIN_LITERS", 20),
                       ("BONNET_CAMERA_PITCH", -2.0), ("BUMPER_CAMERA_PITCH", -2.0)]),
@@ -377,7 +377,9 @@ def _body_cd_lut(s):
 
 def _cameras_ini(s, d):
     H = s["height"]; zf = d["axle_z_front"] + s["overhang_f"]; zr = d["axle_z_rear"] - s["overhang_r"]
-    ex, ey, ez = s["eye_x"], s["eye_y"], s["eye_z"]
+    # 運転席の後ろ・屋根の前寄りのカメラは設計時の目（内装の DRIVER_EYE）から測る。2026-11-26 に DRIVEREYES を運転士の頭の中へ
+    # 0.42 m 前に移したが、これらのカメラは座席・屋根の位置のためのものなので動かさない（目から測ると 2 番が運転士の背中に入る）
+    ex, ey, ez = s["design_eye_x"], s["design_eye_y"], s["design_eye_z"]
 
     def cam(pos, fwd, fov, exp, snd):
         n = math.sqrt(sum(c * c for c in fwd)); f = [c / n for c in fwd]
@@ -447,7 +449,8 @@ def build(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     # DRIVEREYES・dash_cam の座標は kn5 座標（GRAPHICS_OFFSET を足さない。HT81S の car.ini と元の kn5 で確認、
-    # ZC32S の physics も内装を動かしたぶんだけ足す）。spec の eye_* は内装の DRIVER_EYE を (-bx, bz, by) にしたもの。
+    # ZC32S の physics も内装を動かしたぶんだけ足す）。spec の eye_* は運転士のモデルの目（2026-11-26、tools/driver_eye.py。
+    # 前は内装の DRIVER_EYE = design_eye_*）。dash_cam は目の少し前（目と一緒に動かす）。
     eye = (s["eye_x"], s["eye_y"], s["eye_z"] + 0.04)
     files = {
         "car.ini": _car_ini(s, d, go, total, ax),

@@ -71,7 +71,7 @@ local function norm(a) local l = math.sqrt(a[1]*a[1]+a[2]*a[2]+a[3]*a[3]); retur
 -- Driver eye in world space, recomputed every frame from car.ini [GRAPHICS] DRIVEREYES (kn5 coords: +x = car's left = c.side).
 -- (Run circle_drift_094555: reusing the world position of the last cockpit shot left the camera 1.6 m behind the eye once the bus
 -- had moved, and the cockpit camera itself once came out 5.6 m behind the bus.)  Checked against run 094256: eye = 3.39 m ahead, 0.63 m right, 1.98 m up.
-local EYE = {-0.642, 1.985, 3.407}
+local EYE = {-0.642, 1.815, 3.83}   -- = tools/spec.json eye_x/y/z (2026-11-26: the driver model's eye inside the head; was DRIVER_EYE -0.642, 1.985, 3.407)
 -- F6 cameras 3/4 as written to data/cameras.ini (kn5 car space: +x = c.side, +y = up, +z = c.look); read from the car if CSP allows, else these copies
 local F6CAM = {[3] = {p = {0, 4.905, -13.48}, f = {0, -0.21914, 0.97569}}, [4] = {p = {0, 6.305, -18.48}, f = {0, -0.23213, 0.97268}}}
 pcall(function()

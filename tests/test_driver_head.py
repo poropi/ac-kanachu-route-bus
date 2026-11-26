@@ -80,3 +80,13 @@ def test_posed_vertices_unchanged(pair):
         d = driver_posed.max_point_set_distance(mo["DRIVER:BODY_SUB3"], mn["DRIVER:NECK"])
         assert d <= 0.006, (label, d)
         print("%s: 首の肌の移動 最大 %.1f mm" % (label, 1000 * d))
+
+
+def test_probe_eye_is_spec_eye():
+    """試走の probe（tools/ac/KanachuProbe/KanachuProbe.lua）の EYE は spec の eye_*（= car.ini の DRIVEREYES）と同じ。"""
+    import re
+    import spec
+    lua = (ROOT / "tools/ac/KanachuProbe/KanachuProbe.lua").read_text(encoding="utf-8")
+    m = re.search(r"^local EYE = \{([^}]*)\}", lua, re.M)
+    s = spec.load()
+    assert [float(x) for x in m.group(1).split(",")] == [s["eye_x"], s["eye_y"], s["eye_z"]]
