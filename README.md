@@ -4,8 +4,17 @@
 
 神奈中（神奈川中央交通）でよく見かける大型ノンステップの路線バスを、Assetto Corsa（PC 版）で運転できるようにした車 MOD です。基準にした車種は、いすゞ エルガ（LV290 系、短尺の N 尺、全長 10.43 m）です。メーカーのエンブレムは付けていません。
 
-![新塗装](docs/images/livery_new2023.jpg)
-![旧塗装](docs/images/livery_standard.jpg)
+![ヤビツの町なかを走る新塗装のバス](docs/images/ingame_new2023_front34.jpg)
+
+## 外観
+
+| 新塗装（2023 年度〜） | 旧塗装 |
+|---|---|
+| ![新塗装・横](docs/images/ingame_new2023_side.jpg) | ![旧塗装・斜め前](docs/images/ingame_standard_front34.jpg) |
+| ![新塗装・後ろ](docs/images/ingame_new2023_rear.jpg) | ![旧塗装・見本](docs/images/livery_standard.jpg) |
+| ![新塗装・見本](docs/images/livery_new2023.jpg) | |
+
+ゲームの中の画像は、Assetto Corsa で撮ったものです（コース：ヤビツ峠周辺の自作コース、Kunos の drift）。見本の 2 枚は Blender のレンダーです。
 
 ## 特徴
 
@@ -17,7 +26,11 @@
 - **バックミラー**：左右 5 枚の鏡に、後ろの景色が映ります。
 - **後ろから見る視点**：F6 の車載カメラの 4 番目と 5 番目は、バスの後ろ上方から見る視点です（下の「使い方」を参照）。
 
-![運転席](docs/images/cockpit.jpg)
+| 運転席 | F6 の後方カメラ | バックミラー |
+|---|---|---|
+| ![運転席からの眺め](docs/images/ingame_cockpit.jpg) | ![F6 の 4 番目の後方カメラ](docs/images/ingame_f6_rear_camera.jpg) | ![右の後写鏡に映る後ろ](docs/images/ingame_mirror.jpg) |
+
+![運転席（Blender のレンダー）](docs/images/cockpit.jpg)
 
 ## 動作環境
 
