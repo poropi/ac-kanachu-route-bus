@@ -30,7 +30,9 @@ LOCK_DEG = 90    # ハンドルの片側の角度（度）。AC は steer.ksanim
 #   INVERT_SHIFTING_HANDS=0 … 右手でレバーを扱う標準の向き。
 SHIFT = (("BLEND_TIME", 150), ("POSITIVE_TIME", 250), ("STATIC_TIME", 10), ("NEGATIVE_TIME", 250),
          ("PRELOAD_RPM", 2100), ("INVERT_SHIFTING_HANDS", 0))
-HIDE = ("DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP")   # 運転席の視点で顔・髪・帽子が目に入らないよう隠す
+HIDE = ("DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP", "DRIVER:BODY_SUB3")
+# 運転席の視点で顔・髪・帽子が目に入らないよう隠す。BODY_SUB3 は首の肌（driver_neck）: 目は頭より 0.4 m 後ろにあり、
+# 頭だけ隠すと下を向いたときに首の切り口が真ん中に写る（2026-11-26 試走の eyedown、ユーザー判断で隠す）。上着の背中は残る
 
 
 def driver3d_ini(lock_deg: float = LOCK_DEG) -> str:
