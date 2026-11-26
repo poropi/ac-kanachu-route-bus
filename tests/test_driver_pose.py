@@ -6,9 +6,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import driver_eye
 import driver_pose as dp
+import kn5io
 import knh
 import paths
+import spec
 from driver_skeleton import BONES
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,7 +58,7 @@ def dist_to_grip_circle(p):
 
 
 def test_seated_pose_constraints(solved):
-    rest, local, report, _ = solved
+    rest, local, report, kn5 = solved
     W = dp.fk(local)
     # 拡大なし: どの行列も 3x3 が直交（行列式 +1）
     for n, m in local.items():
@@ -72,16 +75,21 @@ def test_seated_pose_constraints(solved):
     bends = dp.elbow_bends(W)
     assert min(bends.values()) >= 15.0, bends
     head = W["DRIVER:RIG_Head"][3, :3]
-    assert head[1] < COCKPIT["eye"][1]
+    # 2026-11-26（ユーザー判断）: 「頭が DRIVER_EYE より下」をやめ、運転席の視点（spec の eye_*）= この姿勢のモデルの目にする
+    eye = None
+    if Path(kn5).stem == "kanachu_driver":           # 骨組みだけの模型には顔のテクスチャが無い
+        eye = driver_eye.model_eye(kn5io.read(str(kn5)), W)
+        sp = spec.load()
+        assert np.allclose(eye, [sp["eye_x"], sp["eye_y"], sp["eye_z"]], atol=0.0015), eye
     palms = {a: dp.palm_center(W, a) for a in "LR"}
     hands = {a: dist_to_grip_circle(palms[a]) for a in "LR"}
     assert max(hands.values()) <= 0.02, hands
     assert 60.0 <= report["grip_deg"] <= 100.0
     assert np.linalg.norm(palms["L"] - palms["R"]) > 0.15      # 両手が同じ点に重ならない
     print("握り角 %.0f 度、前傾（腰から首）%.1f 度（解の前傾 %.0f 度）、腰の前後のずれ %+.2f m、肘の曲げ L %.1f R %.1f 度、"
-          "手のひら-握りの円 L %.4f R %.4f m、頭の高さ %.3f（目 %.3f）"
+          "手のひら-握りの円 L %.4f R %.4f m、頭の骨 %s、モデルの目 %s"
           % (report["grip_deg"], lean, report["lean_deg"], report["pelvis_slide_m"], bends["L"], bends["R"],
-             hands["L"], hands["R"], head[1], COCKPIT["eye"][1]))
+             hands["L"], hands["R"], np.round(head, 4), None if eye is None else np.round(eye, 4)))
 
 
 def test_fingers_curled_by_grip_json(solved):

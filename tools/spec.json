@@ -198,17 +198,32 @@
  "eye_x": {
   "v": -0.642,
   "src": "calc",
-  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換"
+  "note": "運転士のモデルの目（2026-11-26 ユーザー判断で運転席の視点を運転士の頭の中へ）: tools/driver_eye.py で、座った姿勢の顔のテクスチャの瞳の中点から頭の中へ 0.03 m（kn5 座標、mm に丸め）。tests/test_driver_pose.py が組み立てた kn5・knh から計算し直して照合する。内装の DRIVER_EYE（設計時の目 -0.642, 1.985, 3.407、design_eye_*）より前へ 0.42 m・下へ 0.17 m"
+ },
+ "design_eye_x": {
+  "v": -0.642,
+  "src": "calc",
+  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換。設計時の目。2026-11-26 から DRIVEREYES は運転士のモデルの目（eye_*）で、これは目から測っていた車の F6 カメラ（0 番・2 番）と MIRROR_POSITION の基準として残す（位置を変えないため）"
  },
  "eye_y": {
+  "v": 1.815,
+  "src": "calc",
+  "note": "運転士のモデルの目（2026-11-26 ユーザー判断で運転席の視点を運転士の頭の中へ）: tools/driver_eye.py で、座った姿勢の顔のテクスチャの瞳の中点から頭の中へ 0.03 m（kn5 座標、mm に丸め）。tests/test_driver_pose.py が組み立てた kn5・knh から計算し直して照合する。内装の DRIVER_EYE（設計時の目 -0.642, 1.985, 3.407、design_eye_*）より前へ 0.42 m・下へ 0.17 m"
+ },
+ "design_eye_y": {
   "v": 1.985,
   "src": "calc",
-  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換"
+  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換。設計時の目。2026-11-26 から DRIVEREYES は運転士のモデルの目（eye_*）で、これは目から測っていた車の F6 カメラ（0 番・2 番）と MIRROR_POSITION の基準として残す（位置を変えないため）"
  },
  "eye_z": {
+  "v": 3.83,
+  "src": "calc",
+  "note": "運転士のモデルの目（2026-11-26 ユーザー判断で運転席の視点を運転士の頭の中へ）: tools/driver_eye.py で、座った姿勢の顔のテクスチャの瞳の中点から頭の中へ 0.03 m（kn5 座標、mm に丸め）。tests/test_driver_pose.py が組み立てた kn5・knh から計算し直して照合する。内装の DRIVER_EYE（設計時の目 -0.642, 1.985, 3.407、design_eye_*）より前へ 0.42 m・下へ 0.17 m"
+ },
+ "design_eye_z": {
   "v": 3.407,
   "src": "calc",
-  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換"
+  "note": "design/interior DRIVER_EYE (Blender 0.642,3.407,1.985) を kn5 座標 (-bx,bz,by) に変換。設計時の目。2026-11-26 から DRIVEREYES は運転士のモデルの目（eye_*）で、これは目から測っていた車の F6 カメラ（0 番・2 番）と MIRROR_POSITION の基準として残す（位置を変えないため）"
  },
  "engine_coast_nm": {
   "v": 200,

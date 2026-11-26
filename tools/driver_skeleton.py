@@ -76,3 +76,19 @@ BONES = [
 HEAD_MESHES = ("DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP")
 # 骨で動くメッシュ（Armature モディファイアと、骨名の頂点グループを持つ）
 SKINNED_MESHES = ("DRIVER:BODY", "DRIVER:GLOVES")
+# 首の肌（2026-11-26、ユーザー判断）: NECK_SOURCE のうちマテリアル名が NECK_MATERIAL_PREFIX で始まる面を、書き出しで骨で動くメッシュから外し、
+# 頭の骨に付いた固定メッシュ NECK_MESH（種類 2。複数マテリアルなら種類 1 + _SUBn）にする。driver3d.ini の HIDE_OBJECT は骨で動く
+# メッシュ（種類 3、前の DRIVER:BODY_SUB3）を隠せなかった（試走のユーザーの画面）ので、頭と同じ固定メッシュにして運転席の視点から隠す。
+# .blend の作り（首の肌は DRIVER:BODY の一部で、重みは RIG_Cest・RIG_Nek）は変えない。
+NECK_SOURCE = "DRIVER:BODY"
+NECK_MATERIAL_PREFIX = "driver_neck"
+NECK_MESH = "DRIVER:NECK"
+
+# AC が driver3d.ini の [HEAD_MOVEMENT] で回す首の骨と、その子の頭の骨のレストの向き（2026-11-26、ユーザー判断）。
+# AC は DRIVER:RIG_Nek をそのローカルの軸のまわりに回す（Y = ヨー、Z = 前、X = +x = 運転手の左。Kunos の運転手は首が Y 上・Z 前、
+# 頭がほぼ単位）。Blender の骨はローカル Y が骨の向きなので、そのままでは AC の「ヨー」が首の左右の傾きになった（試走で確認）。
+# そこで kn5 の書き出し（tools/driver_to_kn5.py）で 2 本とも世界の回転を単位行列にする（位置はそのまま）。
+# 座った姿勢では首は上体と一緒に前傾するので、ヨーの軸は鉛直から前傾の分（約 5°）だけ前へ倒れる（Kunos の首の約 14° を足すより鉛直に近い）。逆バインド行列・子の骨の相対行列・頭のメッシュの頂点は
+# この向きから計算するので、どの姿勢でも頂点の世界位置は変わらない（knh・ksanim は世界の向きの差で解くので自動でこの向きに合う）。
+# 首の親の RIG_Cest も同じにする（Kunos の RIG_Cest も単位）。AC が首の回転を親の側から掛ける作りでも、ヨーの軸が鉛直に近くなる。
+AC_AXES_BONES = ("DRIVER:RIG_Cest", "DRIVER:RIG_Nek", "DRIVER:RIG_Head")

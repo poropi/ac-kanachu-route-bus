@@ -90,8 +90,10 @@ def test_driver3d_ini_values():
         assert physics.read_ini(f, strict=True)["STEER_ANIMATION"]["LOCK"] == "450"
     assert ini["MODEL"] == {"NAME": "kanachu_driver", "POSITION": "0,0,0"}
     assert ini["STEER_ANIMATION"] == {"NAME": "steer.ksanim", "LOCK": "90"}
+    # 首の左右の傾きとうなずきは止め、カーブの方へ顔を向ける動きだけ残す（ユーザー判断 2026-11-26）
+    assert ini["HEAD_MOVEMENT"] == {"FILTER": "0.15", "MAX_G": "0.3", "ROLL_MAX_DEG": "0", "PITCH_MAX_DEG": "0", "YAW_MAX_DEG": "5"}
     assert "SHIFT_ANIMATION" in ini and int(ini["SHIFT_ANIMATION"]["PRELOAD_RPM"]) < 2600   # 回転は 2,600 rpm まで
-    assert [ini["HIDE_OBJECT_%d" % i]["NAME"] for i in range(4)] == ["DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP", "DRIVER:BODY_SUB3"]
+    assert [ini["HIDE_OBJECT_%d" % i]["NAME"] for i in range(4)] == ["DRIVER:GEO_Driver_FACE", "DRIVER:HAIR", "DRIVER:CAP", "DRIVER:NECK"]
     assert not any(k.startswith("HIDE_OBJECT_") and k not in ("HIDE_OBJECT_0", "HIDE_OBJECT_1", "HIDE_OBJECT_2", "HIDE_OBJECT_3") for k in ini)
 
 

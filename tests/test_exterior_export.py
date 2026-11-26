@@ -118,13 +118,14 @@ def test_rotation_axes_point_away_from_driver(kn5):
         assert np.linalg.norm(w.mean(0) - M[:3, 3]) < 0.3, n
 
 
-def test_car_ini_eyes_match_kn5_driver_eye(kn5, tmp_path):
-    import physics
+def test_design_eye_matches_kn5_driver_eye(kn5):
+    """内装の DRIVER_EYE（設計時の目）= spec の design_eye_*。2026-11-26 から DRIVEREYES は運転士のモデルの目（spec の eye_*、
+    test_driver_pose が照合）で、DRIVER_EYE はカメラの基準と針・ハンドルの軸の向きの検査（validate.axis_problems）に使う。"""
+    import spec
     by = {n.name: n for n in kn5io.walk(kn5.root)}
     eye = np.array(by["DRIVER_EYE"].matrix)[12:15]
-    physics.build(tmp_path)
-    got = [float(x) for x in physics.read_ini(tmp_path / "car.ini")["GRAPHICS"]["DRIVEREYES"].split(",")]
-    assert got == pytest.approx(list(eye), abs=1e-4)
+    s = spec.load()
+    assert [s["design_eye_" + a] for a in "xyz"] == pytest.approx(list(eye), abs=1e-4)
 
 
 def test_analog_matches_interior_report(tmp_path):

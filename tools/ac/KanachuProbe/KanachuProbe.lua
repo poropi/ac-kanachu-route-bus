@@ -71,7 +71,7 @@ local function norm(a) local l = math.sqrt(a[1]*a[1]+a[2]*a[2]+a[3]*a[3]); retur
 -- Driver eye in world space, recomputed every frame from car.ini [GRAPHICS] DRIVEREYES (kn5 coords: +x = car's left = c.side).
 -- (Run circle_drift_094555: reusing the world position of the last cockpit shot left the camera 1.6 m behind the eye once the bus
 -- had moved, and the cockpit camera itself once came out 5.6 m behind the bus.)  Checked against run 094256: eye = 3.39 m ahead, 0.63 m right, 1.98 m up.
-local EYE = {-0.642, 1.985, 3.407}
+local EYE = {-0.642, 1.815, 3.83}   -- = tools/spec.json eye_x/y/z (2026-11-26: the driver model's eye inside the head; was DRIVER_EYE -0.642, 1.985, 3.407)
 -- F6 cameras 3/4 as written to data/cameras.ini (kn5 car space: +x = c.side, +y = up, +z = c.look); read from the car if CSP allows, else these copies
 local F6CAM = {[3] = {p = {0, 4.905, -13.48}, f = {0, -0.21914, 0.97569}}, [4] = {p = {0, 6.305, -18.48}, f = {0, -0.23213, 0.97268}}}
 pcall(function()
@@ -139,7 +139,7 @@ local function releaseCamera() if grabbed then pcall(function() grabbed:dispose(
 -- ac.SceneReference with :size() and :setVisible()). ':' may be read as a filter key by CSP, so '?' (single-character wildcard, which hit
 -- in an earlier CSP Lua probe where '*' did not) is tried as well; the multi-material head meshes are kind-1 nodes with _SUBn meshes.
 -- Every attempt and its count is logged; nothing found or no API -> HIDE_UNAVAILABLE. Visibility is restored right after the shot.
-local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP', 'BODY_SUB3'}   -- the same list as tools/driver.py HIDE. Head ones are kind-1 nodes with kind-2 meshes <name>_SUB0, _SUB1; BODY_SUB3 (neck skin) is a kind-3 skinned mesh
+local HIDE_NAMES = {'GEO_Driver_FACE', 'HAIR', 'CAP', 'NECK'}   -- the same list as tools/driver.py HIDE. Face/hair/cap are kind-1 nodes with kind-2 meshes <name>_SUB0, _SUB1; NECK (neck skin) is a single kind-2 mesh under RIG_Head (was the skinned BODY_SUB3, which HIDE_OBJECT could not hide)
 local HIDE_MAX = 8                                        -- more matches than this for one filter are logged, not hidden
 local hiddenRefs = nil
 local function hideDriverHead(hide)
