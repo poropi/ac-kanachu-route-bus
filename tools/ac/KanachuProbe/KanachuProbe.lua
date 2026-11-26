@@ -210,6 +210,7 @@ end
 local phase = 'S'
 local phaseBT
 local sShot = false
+local sT = 0
 local function circleControl(c)
   local ctl = ac.overrideCarControls(0)
   if not ctl then return end
@@ -217,8 +218,15 @@ local function circleControl(c)
   local kmh = c.speedKmh
   if phase == 'S' then
     ctl.steer = 0.1; ctl.gas = 0; ctl.brake = 1
-    if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('steer90', {'cockdown'})
-    elseif sShot and not shotJob then phase = 'A'; driveStart = elapsed; record('phase S done') end
+    if not sShot and not shotJob and elapsed - driveStart >= 2.5 then sShot = true; startShots('steer90', {'cockdown', 'cockpit'})
+    elseif sShot and not shotJob then phase = 'S2'; sT = elapsed; sShot = false; record('phase S done') end
+    return
+  end
+  -- S2: the same at 90 deg to the LEFT (steer -0.1), so the driver's hands can be judged at 0 / +90 / -90 (original driver, Task 8)
+  if phase == 'S2' then
+    ctl.steer = -0.1; ctl.gas = 0; ctl.brake = 1
+    if not sShot and not shotJob and elapsed - sT >= 2.5 then sShot = true; startShots('steerm90', {'cockdown', 'cockpit'})
+    elseif sShot and not shotJob then phase = 'A'; driveStart = elapsed; record('phase S2 done') end
     return
   end
   if phase == 'A' and (kmh >= 45 or elapsed - driveStart > 25) then phase = 'B'; phaseBT = elapsed; record('phase B at '..string.format('%.1f', elapsed - driveStart)) end
